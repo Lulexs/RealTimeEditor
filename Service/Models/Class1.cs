@@ -7,6 +7,21 @@ public enum PermissionLevel {
     OWNER
 }
 
+public class User {
+    public required string Region { get; set; }
+    public GUID UserId { get; set; }
+    public required string Username { get; set; } 
+    public required string Email { get; set; }
+    public required string HashedPassword { get; set; }
+    public string? Avatar { get; set; }        
+}
+
+public class Workspace {
+    public GUID UserId { get; set; }
+    public GUID WorkspaceId { get; set;}
+    public required string WorkspaceName { get; set; }
+    public required DateTime CreatedAt { get; set;}
+}
 
 public class UserByWorkspace {
     public GUID WorkspaceId { get; set; }

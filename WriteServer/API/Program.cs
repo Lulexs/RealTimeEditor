@@ -24,10 +24,10 @@
 
 using Persistence;
 
-// var session = CassandraSessionManager.GetSession();
-// var rowSet = session.Execute("select * from system.local");
-// Console.WriteLine(rowSet.First().GetValue<string>("key"));
+ var session = CassandraSessionManager.GetSession();
+ var rowSet = session.Execute("select * from system.local");
+ Console.WriteLine(rowSet.First().GetValue<string>("key"));
 
-var database = RedisSessionManager.GetDatabase();
-var pingResponse = database.Execute("PING");
-Console.WriteLine(pingResponse.ToString());
+//var database = RedisSessionManager.GetDatabase();
+//var pingResponse = database.Execute("PING");
+//Console.WriteLine(pingResponse.ToString());
