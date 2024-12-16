@@ -2,17 +2,15 @@ using Models;
 
 namespace Persistence.UserRepository;
 
-public class UserRepositoryCassandra
-{
+public class UserRepositoryCassandra {
 
     /// <summary>
     /// Get user info
     /// </summary>
     /// <param name="username"></param>
     /// <returns></returns>
-    public User GetUserByUsername(string username)
-    {
-        
+    public User GetUserByUsername(string username) {
+        return null;
     }
 
     /// <summary>
@@ -20,8 +18,7 @@ public class UserRepositoryCassandra
     /// </summary>
     /// <param name="username"></param>
     /// <returns></returns>
-    public List<User> GetUsersInWorkspace(GUID WorkspaceId)
-    {
-        
+    public List<User> GetUsersInWorkspace(Guid WorkspaceId) {
+        return [];
     }
 }

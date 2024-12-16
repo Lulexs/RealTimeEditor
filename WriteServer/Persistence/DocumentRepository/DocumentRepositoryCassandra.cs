@@ -10,9 +10,8 @@ public class DocumentRepositoryCassandra {
     /// <param name="workspaceId"></param>
     /// <param name="documentId"></param>
     /// <returns></returns>
-    public Document GetDocument(GUID workspaceId, GUID documentId) 
-    {
-
+    public Document GetDocument(Guid workspaceId, Guid documentId) {
+        return null;
     }
 
     /// <summary>
@@ -21,9 +20,8 @@ public class DocumentRepositoryCassandra {
     /// <param name="workspaceId"></param>
     /// <param name="documentId"></param>
     /// <returns></returns>
-    public UpdatesBySnapshot GetSnapshot(GUID documentId, GUID snapshotId)
-    {
-
+    public UpdatesBySnapshot GetSnapshot(Guid documentId, Guid snapshotId) {
+        return null;
     }
-    
+
 }

@@ -10,9 +10,8 @@ public class DocumentRepositoryRedis {
     /// <param name="workspaceId"></param>
     /// <param name="documentId"></param>
     /// <returns></returns>
-    public Document GetDocument(GUID workspaceId, GUID documentId) 
-    {
-
+    public Document GetDocument(Guid workspaceId, Guid documentId) {
+        return null;
     }
 
     /// <summary>
@@ -21,26 +20,23 @@ public class DocumentRepositoryRedis {
     /// <param name="workspaceId"></param>
     /// <param name="documentId"></param>
     /// <returns></returns>
-    public void SaveDocument(Document document) 
-    {
-        
+    public void SaveDocument(Document document) {
+
     }
 
     /// <summary>
     /// Write document info to Redis pubsub
     /// </summary>
     /// <param name="document"></param>
-    public void CreateDocument(Document document)
-    {
-        
+    public void CreateDocument(Document document) {
+
     }
 
     /// <summary>
     /// Write update to Redis pubsub
     /// </summary>
     /// <param name="document"></param>
-    public void SaveUpdate(GUID documentId, GUID updateId, string payload)
-    {
+    public void SaveUpdate(Guid documentId, Guid updateId, string payload) {
 
     }
 
@@ -48,8 +44,7 @@ public class DocumentRepositoryRedis {
     /// Writes merged update to Redis pubsub as new snapshot
     /// </summary>
     /// <param name="document"></param>
-    public void SaveSnapshot(GUID documentId, GUID updateId, string payload)
-    {
+    public void SaveSnapshot(Guid documentId, Guid updateId, string payload) {
 
     }
 
@@ -57,8 +52,7 @@ public class DocumentRepositoryRedis {
     /// Writes snapshot to Redis pubsub so it can be saved as new document
     /// </summary>
     /// <param name="document"></param>
-    public void SaveSnapshotAsDocument(GUID documentId, GUID snapshotId)
-    {
+    public void SaveSnapshotAsDocument(Guid documentId, Guid snapshotId) {
 
     }
 
@@ -67,8 +61,7 @@ public class DocumentRepositoryRedis {
     /// </summary>
     /// <param name="documentId"></param>
     /// <param name="newName"></param>
-    public void ChangeDocumentName(GUID documentId, string newName)
-    {
+    public void ChangeDocumentName(Guid documentId, string newName) {
 
     }
 
@@ -77,8 +70,7 @@ public class DocumentRepositoryRedis {
     /// </summary>
     /// <param name="documentId"></param>
     /// <param name="newName"></param>
-    public void DeleteDocument(GUID documentId)
-    {
+    public void DeleteDocument(Guid documentId) {
 
     }
 

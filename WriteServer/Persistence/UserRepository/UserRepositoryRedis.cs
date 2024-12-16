@@ -2,15 +2,13 @@ using Models;
 
 namespace Persistence.UserRepository;
 
-public class UserRepositoryRedis
-{
+public class UserRepositoryRedis {
 
     /// <summary>
     /// Writes user info to redis pub-sub 
     /// </summary>
     /// <param name="user"></param>
-    public void SaveUser(User user)
-    {
+    public void SaveUser(User user) {
 
     }
 
@@ -19,9 +17,8 @@ public class UserRepositoryRedis
     /// </summary>
     /// <param name="username"></param>
     /// <returns></returns>
-    public List<User> GetUsersInWorkspace(GUID workspaceId)
-    {
-        
+    public List<User> GetUsersInWorkspace(Guid workspaceId) {
+        return [];
     }
 
     /// <summary>
@@ -29,8 +26,7 @@ public class UserRepositoryRedis
     /// </summary>
     /// <param name="username"></param>
     /// <returns></returns>
-    public void AddUserToWorkspace(GUID workspaceId, GUID userId, PermissionLevel permission)
-    {
+    public void AddUserToWorkspace(Guid workspaceId, Guid userId, PermissionLevel permission) {
 
     }
 
@@ -42,7 +38,7 @@ public class UserRepositoryRedis
     /// <param name="userId"></param>
     /// <param name="workspaceId"></param>
     /// <param name="permission"></param>
-    public void ChangeUserPermissionLevel(GUID userId, GUID workspaceId, PermissionLevel permission) {
+    public void ChangeUserPermissionLevel(Guid userId, Guid workspaceId, PermissionLevel permission) {
 
     }
 

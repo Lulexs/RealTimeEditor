@@ -2,7 +2,8 @@ using Models;
 
 namespace Persistence.DocumentRepository;
 
-public class DocumentRepositoryCassandra {
+public class DocumentRepositoryCassandra
+{
 
     /// <summary>
     /// Write document info from redis pubsub to Cassandra
@@ -10,7 +11,7 @@ public class DocumentRepositoryCassandra {
     /// <param name="document"></param>
     public void CreateDocument(Document document)
     {
-        
+
     }
 
     /// <summary>
@@ -45,7 +46,7 @@ public class DocumentRepositoryCassandra {
     /// </summary>
     /// <param name="documentId"></param>
     /// <param name="newName"></param>
-    public void ChangeDocumentName(GUID documentId, string documentName)
+    public void ChangeDocumentName(Guid documentId, string documentName)
     {
 
     }
@@ -55,9 +56,9 @@ public class DocumentRepositoryCassandra {
     /// </summary>
     /// <param name="documentId"></param>
     /// <param name="newName"></param>
-    public void DeleteDocument(GUID documentId)
+    public void DeleteDocument(Guid documentId)
     {
 
     }
-    
+
 }

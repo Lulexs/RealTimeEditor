@@ -2,16 +2,14 @@ using Models;
 
 namespace Persistence.WorkspaceRepository;
 
-public class WorkspaceRepositoryRedis
-{
+public class WorkspaceRepositoryRedis {
     /// <summary>
     /// Reads user id and workspace from pubsub
     /// </summary>
     /// <param name="UserID"></param>
     /// <param name="workspace"></param>
-    public (GUID, Workspace) GetUserIdeWorkspace()
-    {
-
+    public (Guid, Workspace) GetUserIdeWorkspace() {
+        return (Guid.NewGuid(), null);
     }
 
     /// <summary>
@@ -19,7 +17,7 @@ public class WorkspaceRepositoryRedis
     /// </summary>
     /// <param name="workspaceID"></param>
     /// <param name="newName"></param>
-    public (GUID, string) GetWorkspaceChangeName() {
-
+    public (Guid, string) GetWorkspaceChangeName() {
+        return (Guid.NewGuid(), null);
     }
 }

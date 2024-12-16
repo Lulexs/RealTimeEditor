@@ -2,15 +2,13 @@ using Models;
 
 namespace Persistence.WorkspaceRepository;
 
-public class WorkspaceRepositoryRedis
-{
+public class WorkspaceRepositoryCassandra {
     /// <summary>
     /// Write workspace info to cassandra
     /// </summary>
     /// <param name="UserID"></param>
     /// <param name="workspace"></param>
-    public void CreateWorkspace()
-    {
+    public void CreateWorkspace() {
 
     }
 
