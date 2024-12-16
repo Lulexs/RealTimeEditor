@@ -7,7 +7,6 @@ public enum PermissionLevel {
     OWNER
 }
 
-
 public class UserByWorkspace {
     public GUID WorkspaceId { get; set; }
     public GUID UserId { get; set; }
