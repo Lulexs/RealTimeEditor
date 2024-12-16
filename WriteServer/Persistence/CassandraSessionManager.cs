@@ -3,11 +3,11 @@ using Microsoft.Extensions.Configuration;
 
 namespace Persistence;
 
-internal class CassandraSessionManager {
+public class CassandraSessionManager {
     private static ISession _session = null!;
     private static readonly object LockObject = new();
 
-    internal static ISession GetSession() {
+    public static ISession GetSession() {
         if (_session == null) {
             lock (LockObject) {
                 if (_session == null) {
