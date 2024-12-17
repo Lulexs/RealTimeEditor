@@ -9,7 +9,7 @@ public class WorkspaceRepositoryRedis {
     /// <param name="UserID"></param>
     /// <returns></returns>
     public List<Workspace> GetUsersWorkspaces(Guid UserID) {
-
+        return [];
     }
 
     /// <summary>

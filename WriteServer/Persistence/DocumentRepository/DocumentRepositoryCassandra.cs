@@ -10,8 +10,16 @@ public class DocumentRepositoryCassandra {
     /// <param name="workspaceId"></param>
     /// <param name="documentId"></param>
     /// <returns></returns>
-    public Document GetDocument(Guid workspaceId, Guid documentId) {
-        return null;
+    public Document? GetDocument(Guid workspaceId, Guid documentId) {
+        return new Document() {
+            WorkspaceId = workspaceId,
+            DocumentId = documentId,
+            DocumentName = "Doc123",
+            CreatedAt = DateTime.Now,
+            CreatorUserId = Guid.NewGuid(),
+            LastUpdate = DateTime.Now,
+            SnapshotIds = []
+        };
     }
 
     /// <summary>

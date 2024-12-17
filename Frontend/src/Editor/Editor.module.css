@@ -1,0 +1,20 @@
+.editorContainer {
+  max-width: 8.5in;
+  margin: 5px auto;
+  padding: 1in;
+  min-height: 11in;
+  background-color: white;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
+}
+
+.editorContent {
+  font-family: Arial, sans-serif;
+  font-size: 10pt;
+  line-height: 1.5;
+  color: #333;
+}
+
+.editorContent:focus {
+  outline: none;
+}
