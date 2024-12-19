@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Models;
+using StackExchange.Redis;
 
 namespace Persistence.DocumentRepository;
 
@@ -32,12 +34,22 @@ public class DocumentRepositoryRedis {
 
     }
 
+
     /// <summary>
     /// Write update to Redis pubsub
     /// </summary>
     /// <param name="document"></param>
-    public void SaveUpdate(Guid documentId, Guid updateId, string payload) {
+    public async Task SaveUpdateAsync(Guid documentId, byte[] update) {
+        var subscriber = RedisSessionManager.GetSubscriber();
 
+        string channelName = "updates";
+        var message = new {
+            DocumentId = documentId,
+            Update = Convert.ToBase64String(update)
+        };
+        string serializedMessage = JsonSerializer.Serialize(message);
+
+        await subscriber.PublishAsync(new RedisChannel(channelName, RedisChannel.PatternMode.Literal), serializedMessage);
     }
 
     /// <summary>

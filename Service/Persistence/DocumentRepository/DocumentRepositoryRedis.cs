@@ -2,43 +2,38 @@ using Models;
 
 namespace Persistence.DocumentRepository;
 
-public class DocumentRepositoryCassandra
-{
+public class DocumentRepositoryRedis {
 
     /// <summary>
     /// Read document info from Redis pubsub
     /// </summary>
     /// <param name="document"></param>
-    public Document ReadDocumentInfo()
-    {
-
+    public Document ReadDocumentInfo() {
+        return null;
     }
 
     /// <summary>
     /// Read update from Redis pubsub
     /// </summary>
     /// <param name="document"></param>
-    public UpdatesBySnapshot ReadUpdate()
-    {
-
+    public UpdatesBySnapshot ReadUpdate() {
+        return null;
     }
 
     /// <summary>
     /// Read merged update from Redis pubsub
     /// </summary>
     /// <param name="document"></param>
-    public string ReadMergedUpdate()
-    {
-
+    public string ReadMergedUpdate() {
+        return null;
     }
 
     /// <summary>
     /// Read snapshot from Redis pubsub 
     /// </summary>
     /// <param name="document"></param>
-    public string ReadSnapshot()
-    {
-
+    public string ReadSnapshot() {
+        return null;
     }
 
     /// <summary>
@@ -46,9 +41,8 @@ public class DocumentRepositoryCassandra
     /// </summary>
     /// <param name="documentId"></param>
     /// <param name="newName"></param>
-    public (Guid, string) ReadDocumentName()
-    {
-
+    public (Guid, string) ReadDocumentName() {
+        return (Guid.Empty, "");
     }
 
     /// <summary>
@@ -56,9 +50,8 @@ public class DocumentRepositoryCassandra
     /// </summary>
     /// <param name="documentId"></param>
     /// <param name="newName"></param>
-    public Guid ReadDocumentID()
-    {
-
+    public Guid ReadDocumentID() {
+        return Guid.Empty;
     }
 
 }

@@ -57,8 +57,9 @@ public class UpdatesLogic {
         return bytes;
     }
 
-    public void UpdateDoc(Guid workspaceId, Guid docId, SyncUpdateMessage updateMsg) {
+    public async void UpdateDoc(Guid workspaceId, Guid docId, SyncUpdateMessage updateMsg) {
         // ulong update_id = BitConverter.ToUInt64(updateMsg.Update); // first 8 byte
+        await _docRepoRed.SaveUpdateAsync(docId, updateMsg.Update);
         _docs[(workspaceId, docId)].Add(updateMsg.Update);
     }
 
