@@ -1,8 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using ApplicationLogic;
-using YDotNet.Document;
-using YDotNet.Document.Transactions;
 using YDotNet.Protocol;
 using YDotNet.Server.WebSockets;
 
@@ -10,7 +8,7 @@ namespace API.Controllers;
 
 public class UpdatesController : BaseController {
 
-    private UpdatesLogic _updatesLogic;
+    private readonly UpdatesLogic _updatesLogic;
     private static readonly ConcurrentDictionary<(Guid, Guid), SharedDoc> docs = [];
 
     public UpdatesController(UpdatesLogic updatesLogic) {
@@ -39,16 +37,21 @@ public class UpdatesController : BaseController {
 
     private async Task SetupWSConnection(WebSocket conn, Guid workspaceId, Guid documentId) {
         var docExists = _updatesLogic.VerifyExists(workspaceId, documentId);
+        SharedDoc? sharedDoc;
         if (!docExists) {
             HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
             await HttpContext.Response.WriteAsync("Document doesn't exist");
             return;
         }
+        else if (docs.TryGetValue((workspaceId, documentId), out sharedDoc)) {
+            sharedDoc.Conns.Add(conn);
+        }
+        else {
+            sharedDoc = new SharedDoc(workspaceId, documentId);
+            sharedDoc.Conns.Add(conn);
 
-        var sharedDoc = new SharedDoc(workspaceId, documentId);
-        sharedDoc.Conns.Add(conn);
-
-        docs.TryAdd((workspaceId, documentId), sharedDoc);
+            docs.TryAdd((workspaceId, documentId), sharedDoc);
+        }
 
         await RecieveMessageAsync(conn, sharedDoc);
     }
@@ -62,18 +65,16 @@ public class UpdatesController : BaseController {
                 var msg = await decoder.ReadNextMessageAsync(CancellationToken.None);
 
                 if (msg is SyncStep1Message msg1) {
-                    Transaction readTransaction = doc.ReadTransaction();
-                    var stateDiff = readTransaction.StateDiffV1(msg1.StateVector);
-                    readTransaction.Commit();
+                    byte[] documentState = _updatesLogic.GetDocumentBytes(doc.WorkspaceId, doc.DocumentId, msg1.StateVector);
 
-                    await encoder.WriteAsync(new SyncStep2Message(stateDiff), CancellationToken.None);
+                    await encoder.WriteAsync(new SyncStep2Message(documentState), CancellationToken.None);
                 }
                 else if (msg is SyncUpdateMessage msg2) {
                     // WRITE TO PUBSUB
-                    Transaction writeTransaction = doc.WriteTransaction();
-                    Console.WriteLine();
-                    writeTransaction.ApplyV1(msg2.Update);
-                    writeTransaction.Commit();
+                    // Transaction writeTransaction = doc.WriteTransaction();
+                    // writeTransaction.ApplyV1(msg2.Update);
+                    // writeTransaction.Commit();
+                    _updatesLogic.UpdateDoc(doc.WorkspaceId, doc.DocumentId, msg2);
 
                     foreach (var sock in doc.Conns) {
                         if (sock != conn) {
@@ -100,6 +101,7 @@ public class UpdatesController : BaseController {
     }
 
     private static void CloseConnection(SharedDoc doc, WebSocket conn) {
+        Console.WriteLine("Closing connection");
         doc.Conns.Remove(conn);
 
         if (doc.Conns.Count == 0) {
@@ -107,12 +109,12 @@ public class UpdatesController : BaseController {
         }
     }
 
-    private class SharedDoc : Doc {
+    private class SharedDoc {
         public Guid WorkspaceId { get; set; }
         public Guid DocumentId { get; set; }
         public HashSet<WebSocket> Conns = [];
 
-        public SharedDoc(Guid workspaceId, Guid documentId) : base(new YDotNet.Document.Options.DocOptions() { SkipGarbageCollection = true }) {
+        public SharedDoc(Guid workspaceId, Guid documentId) {
             WorkspaceId = workspaceId;
             DocumentId = documentId;
         }
