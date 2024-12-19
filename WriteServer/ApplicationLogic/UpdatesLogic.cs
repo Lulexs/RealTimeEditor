@@ -18,6 +18,20 @@ public class UpdatesLogic {
         _docRepoRed = docRepoRed;
     }
 
+    /*
+    
+    CREATE TABLE documents (
+        workspace_id UUID,
+        document_id UUID,
+        document_name TEXT,
+        created_at TIMESTAMP,
+        creator_user_id UUID,
+        snapshot1 TIMESTAMP,
+        PRIMARY KEY ((workspace_id, document_id))
+    );
+    
+    */
+
     public bool VerifyExists(Guid workspaceId, Guid docId) {
         // return _docRepoCass.GetDocument(workspaceId, docId) != null;
         if (!_docs.ContainsKey((workspaceId, docId))) {
@@ -44,9 +58,14 @@ public class UpdatesLogic {
     }
 
     public void UpdateDoc(Guid workspaceId, Guid docId, SyncUpdateMessage updateMsg) {
-        Console.WriteLine("Updating doc");
+        // ulong update_id = BitConverter.ToUInt64(updateMsg.Update); // first 8 byte
         _docs[(workspaceId, docId)].Add(updateMsg.Update);
-        Console.WriteLine(_docs[(workspaceId, docId)].Count());
     }
 
+}
+
+
+public class UpdateIdentifier {
+    public uint ClientId { get; set; }
+    public uint Clock { get; set; }
 }

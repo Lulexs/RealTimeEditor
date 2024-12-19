@@ -7,6 +7,5 @@ public class Document {
     public required string DocumentName { get; set; }
     public required DateTime CreatedAt { get; set; }
     public required Guid CreatorUserId { get; set; }
-    public required DateTime LastUpdate { get; set; }
     public required List<(string, DateTime)> SnapshotIds { get; set; }
 }

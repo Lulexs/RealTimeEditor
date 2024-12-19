@@ -17,7 +17,6 @@ public class DocumentRepositoryCassandra {
             DocumentName = "Doc123",
             CreatedAt = DateTime.Now,
             CreatorUserId = Guid.NewGuid(),
-            LastUpdate = DateTime.Now,
             SnapshotIds = []
         };
     }
