@@ -3,6 +3,11 @@ using Persistence.DocumentRepository;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+builder.Logging.AddEventSourceLogger();
+
 var configuration = builder.Configuration;
 builder.Services.AddSingleton(configuration);
 builder.Services.AddScoped<DocumentRepositoryCassandra>();

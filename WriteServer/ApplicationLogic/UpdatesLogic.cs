@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 using Persistence.DocumentRepository;
 using YDotNet.Document;
 using YDotNet.Document.Transactions;
@@ -10,63 +11,55 @@ public class UpdatesLogic {
 
     private DocumentRepositoryCassandra _docRepoCass;
     private DocumentRepositoryRedis _docRepoRed;
-
+    private readonly ILogger<UpdatesLogic> _logger;
     private static readonly ConcurrentDictionary<(Guid, Guid), List<byte[]>> _docs = [];
 
-    public UpdatesLogic(DocumentRepositoryCassandra docRepoCass, DocumentRepositoryRedis docRepoRed) {
+    public UpdatesLogic(DocumentRepositoryCassandra docRepoCass, DocumentRepositoryRedis docRepoRed, ILogger<UpdatesLogic> logger) {
         _docRepoCass = docRepoCass;
         _docRepoRed = docRepoRed;
+        _logger = logger;
     }
 
-    /*
-    
-    CREATE TABLE documents (
-        workspace_id UUID,
-        document_id UUID,
-        document_name TEXT,
-        created_at TIMESTAMP,
-        creator_user_id UUID,
-        snapshot1 TIMESTAMP,
-        PRIMARY KEY ((workspace_id, document_id))
-    );
-    
-    */
-
     public bool VerifyExists(Guid workspaceId, Guid docId) {
-        // return _docRepoCass.GetDocument(workspaceId, docId) != null;
         if (!_docs.ContainsKey((workspaceId, docId))) {
             _docs[(workspaceId, docId)] = [];
         }
         return true;
     }
 
-    public byte[] GetDocumentBytes(Guid workspaceId, Guid docId, byte[] stateVector) {
-        Doc doc = new();
-        Console.Write("Here: ");
-        Console.WriteLine(_docs[(workspaceId, docId)].Count());
-        foreach (var update in _docs[(workspaceId, docId)]) {
-            Console.WriteLine("Update");
-            Transaction writeTransaction = doc.WriteTransaction();
-            writeTransaction.ApplyV1(update);
-            writeTransaction.Commit();
-        }
-        Transaction readTransaction = doc.ReadTransaction();
-        var bytes = readTransaction.StateDiffV1(stateVector);
-        readTransaction.Commit();
+    public async Task<byte[]> GetDocumentBytes(Guid docId, byte[] stateVector) {
+        try {
+            List<byte[]> bytes = await _docRepoCass.GetSnapshot(docId, "snapshot1");
+            _logger.LogInformation("Successfully aquired document bytes for document {}", docId);
 
-        return bytes;
+            Doc doc = new();
+            foreach (var update in bytes) {
+                Transaction readTransaction = doc.ReadTransaction();
+                readTransaction.ApplyV1(update);
+                readTransaction.Commit();
+            }
+
+            Transaction readTransaction1 = doc.ReadTransaction();
+            var mergedUpdates = readTransaction1.StateDiffV1(stateVector);
+            readTransaction1.Commit();
+
+            return mergedUpdates;
+        }
+        catch (Exception ec) {
+            _logger.LogError("Failed to aquire document bytes for document {} due to {}", docId, ec.Message);
+            throw new 
+        } 
     }
 
     public async void UpdateDoc(Guid workspaceId, Guid docId, SyncUpdateMessage updateMsg) {
-        // ulong update_id = BitConverter.ToUInt64(updateMsg.Update); // first 8 byte
-        await _docRepoRed.SaveUpdateAsync(docId, updateMsg.Update);
+        try {
+            await _docRepoRed.SaveUpdateAsync(docId, updateMsg.Update);
+            _logger.LogInformation("Update to {}:{} successfully written to message queue", workspaceId, docId);
+        }
+        catch (Exception ec) {
+            _logger.LogError("Update to {}:{} could not be written to message queue due to {}", workspaceId, docId, ec.Message);
+        }
         _docs[(workspaceId, docId)].Add(updateMsg.Update);
     }
 
-}
-
-
-public class UpdateIdentifier {
-    public uint ClientId { get; set; }
-    public uint Clock { get; set; }
 }

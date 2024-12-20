@@ -1,3 +1,4 @@
+using Cassandra.Mapping;
 using Models;
 
 namespace Persistence.DocumentRepository;
@@ -27,8 +28,20 @@ public class DocumentRepositoryCassandra {
     /// <param name="workspaceId"></param>
     /// <param name="documentId"></param>
     /// <returns></returns>
-    public UpdatesBySnapshot GetSnapshot(Guid documentId, Guid snapshotId) {
-        return null;
+    public async Task<List<byte[]>> GetSnapshot(Guid documentId, string snapshotId) {
+        var session = CassandraSessionManager.GetSession();
+
+        var statement = await session.PrepareAsync("SELECT payload from updates_by_snapshot WHERE documentid = ? AND snapshotid = ?");
+        var boundStatement = statement.Bind(documentId, snapshotId);
+        var resultSet = await session.ExecuteAsync(boundStatement);
+
+        List<byte[]> payloads = [];
+        foreach (var row in resultSet) {
+            var payload = row.GetValue<byte[]>("payload");
+            payloads.Add(payload);
+        }
+
+        return payloads;
     }
 
 }

@@ -10,17 +10,22 @@ public class UpdatesController : BaseController {
 
     private readonly UpdatesLogic _updatesLogic;
     private static readonly ConcurrentDictionary<(Guid, Guid), SharedDoc> docs = [];
+    private readonly ILogger<UpdatesController> _logger;
 
-    public UpdatesController(UpdatesLogic updatesLogic) {
+    public UpdatesController(UpdatesLogic updatesLogic, ILogger<UpdatesController> logger) {
         _updatesLogic = updatesLogic;
+        _logger = logger;
     }
 
     [Route("/ws/{workspaceGuid}/{documentGuid}")]
     public async Task Get(string workspaceGuid, string documentGuid) {
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var clientPort = HttpContext.Connection.RemotePort.ToString();
+
         if (HttpContext.WebSockets.IsWebSocketRequest) {
             using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-            Console.WriteLine(workspaceGuid);
-            Console.WriteLine(documentGuid);
+
+            _logger.LogInformation("Incoming WebSocket request from {}:{}", clientIp, clientPort);
 
             if (!Guid.TryParse(workspaceGuid, out var workspaceId) || !Guid.TryParse(documentGuid, out var documentId)) {
                 HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -28,10 +33,12 @@ public class UpdatesController : BaseController {
                 return;
             }
 
+            _logger.LogInformation("Accepted WebSocket connection from {}:{} for workspace {} and document {}", clientIp, clientPort, workspaceId, documentId);
             await SetupWSConnection(webSocket, workspaceId, documentId);
         }
         else {
             HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+            _logger.LogInformation("Rejected request from {}:{} as it is not a WebSocket request", clientIp, clientPort);
         }
     }
 
@@ -41,6 +48,10 @@ public class UpdatesController : BaseController {
         if (!docExists) {
             HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
             await HttpContext.Response.WriteAsync("Document doesn't exist");
+
+            var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var clientPort = HttpContext.Connection.RemotePort.ToString();
+            _logger.LogInformation("Requested document (workspaceId: {}, documentId: {}) from {}:{} doesn't exist", workspaceId, documentId, clientIp, clientPort);
             return;
         }
         else if (docs.TryGetValue((workspaceId, documentId), out sharedDoc)) {
@@ -59,21 +70,19 @@ public class UpdatesController : BaseController {
     private async Task RecieveMessageAsync(WebSocket conn, SharedDoc doc) {
         var encoder = new WebSocketEncoder(conn);
         var decoder = new WebSocketDecoder(conn);
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var clientPort = HttpContext.Connection.RemotePort.ToString();
 
         while (true) {
             try {
                 var msg = await decoder.ReadNextMessageAsync(CancellationToken.None);
 
                 if (msg is SyncStep1Message msg1) {
-                    byte[] documentState = _updatesLogic.GetDocumentBytes(doc.WorkspaceId, doc.DocumentId, msg1.StateVector);
+                    byte[] documentState = await _updatesLogic.GetDocumentBytes(doc.DocumentId, msg1.StateVector);
 
                     await encoder.WriteAsync(new SyncStep2Message(documentState), CancellationToken.None);
                 }
                 else if (msg is SyncUpdateMessage msg2) {
-                    // WRITE TO PUBSUB
-                    // Transaction writeTransaction = doc.WriteTransaction();
-                    // writeTransaction.ApplyV1(msg2.Update);
-                    // writeTransaction.Commit();
                     _updatesLogic.UpdateDoc(doc.WorkspaceId, doc.DocumentId, msg2);
 
                     foreach (var sock in doc.Conns) {
@@ -95,13 +104,13 @@ public class UpdatesController : BaseController {
             }
             catch (WebSocketException) {
                 CloseConnection(doc, conn);
+                _logger.LogInformation("Closing connection from {}:{}", clientIp, clientPort);
                 break;
             }
         }
     }
 
     private static void CloseConnection(SharedDoc doc, WebSocket conn) {
-        Console.WriteLine("Closing connection");
         doc.Conns.Remove(conn);
 
         if (doc.Conns.Count == 0) {
