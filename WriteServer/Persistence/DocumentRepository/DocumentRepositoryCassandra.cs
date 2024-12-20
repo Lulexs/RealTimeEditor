@@ -1,33 +1,20 @@
-using Cassandra.Mapping;
-using Models;
-
 namespace Persistence.DocumentRepository;
 
 public class DocumentRepositoryCassandra {
 
-    /// <summary>
-    /// Read document info from Cassandra
-    /// </summary>
-    /// <param name="workspaceId"></param>
-    /// <param name="documentId"></param>
-    /// <returns></returns>
-    public Document? GetDocument(Guid workspaceId, Guid documentId) {
-        return new Document() {
-            WorkspaceId = workspaceId,
-            DocumentId = documentId,
-            DocumentName = "Doc123",
-            CreatedAt = DateTime.Now,
-            CreatorUserId = Guid.NewGuid(),
-            SnapshotIds = []
-        };
+
+    public async Task<bool> VerifyExistsAsync(Guid workspaceId, Guid documentId) {
+        var session = CassandraSessionManager.GetSession();
+
+        var statement = await session.PrepareAsync("SELECT documentname FROM documents WHERE workspaceid = ? AND documentid = ?");
+        var boundStatement = statement.Bind(workspaceId, documentId);
+        var result = await session.ExecuteAsync(boundStatement);
+
+        if (result.Any())
+            return true;
+        return false;
     }
 
-    /// <summary>
-    /// Read snapshot that is read only
-    /// </summary>
-    /// <param name="workspaceId"></param>
-    /// <param name="documentId"></param>
-    /// <returns></returns>
     public async Task<List<byte[]>> GetSnapshot(Guid documentId, string snapshotId) {
         var session = CassandraSessionManager.GetSession();
 

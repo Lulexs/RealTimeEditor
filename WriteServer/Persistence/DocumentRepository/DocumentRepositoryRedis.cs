@@ -6,24 +6,17 @@ namespace Persistence.DocumentRepository;
 
 public class DocumentRepositoryRedis {
 
-    /// <summary>
-    /// Read document info from cache
-    /// </summary>
-    /// <param name="workspaceId"></param>
-    /// <param name="documentId"></param>
-    /// <returns></returns>
-    public Document GetDocument(Guid workspaceId, Guid documentId) {
-        return null;
+    public async Task<bool> VerifyDocumentExistsAsync(Guid documentId) {
+        var db = RedisSessionManager.GetDatabase();
+
+        bool exists = await db.KeyExistsAsync(documentId.ToString());
+        return exists;
     }
 
-    /// <summary>
-    /// Save document to cache
-    /// </summary>
-    /// <param name="workspaceId"></param>
-    /// <param name="documentId"></param>
-    /// <returns></returns>
-    public void SaveDocument(Document document) {
+    public async void CacheDocumentAsync(Guid docId) {
+        IDatabase database = RedisSessionManager.GetDatabase();
 
+        await database.StringSetAsync(docId.ToString(), "1");
     }
 
     /// <summary>
@@ -34,11 +27,6 @@ public class DocumentRepositoryRedis {
 
     }
 
-
-    /// <summary>
-    /// Write update to Redis pubsub
-    /// </summary>
-    /// <param name="document"></param>
     public async Task SaveUpdateAsync(Guid documentId, byte[] update) {
         var subscriber = RedisSessionManager.GetSubscriber();
 

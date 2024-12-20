@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using ApplicationLogic;
+using ApplicationLogic.Exceptions;
 using YDotNet.Protocol;
 using YDotNet.Server.WebSockets;
 
@@ -22,29 +23,29 @@ public class UpdatesController : BaseController {
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
         var clientPort = HttpContext.Connection.RemotePort.ToString();
 
-        if (HttpContext.WebSockets.IsWebSocketRequest) {
+        _logger.LogInformation("Incoming WebSocket request from {}:{}", clientIp, clientPort);
+
+        if (!Guid.TryParse(workspaceGuid, out var workspaceId) || !Guid.TryParse(documentGuid, out var documentId)) {
+            HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await HttpContext.Response.WriteAsync("Invalid GUID format");
+            _logger.LogInformation("Rejected WebSocket connection from {}:{} for workspace {} and document {} as id is not guid", clientIp, clientPort, workspaceGuid, documentGuid);
+            return;
+        }
+
+        if (HttpContext.WebSockets.IsWebSocketRequest && await VerifyRequestParams(workspaceId, documentId)) {
             using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-
-            _logger.LogInformation("Incoming WebSocket request from {}:{}", clientIp, clientPort);
-
-            if (!Guid.TryParse(workspaceGuid, out var workspaceId) || !Guid.TryParse(documentGuid, out var documentId)) {
-                HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await HttpContext.Response.WriteAsync("Invalid GUID format");
-                return;
-            }
 
             _logger.LogInformation("Accepted WebSocket connection from {}:{} for workspace {} and document {}", clientIp, clientPort, workspaceId, documentId);
             await SetupWSConnection(webSocket, workspaceId, documentId);
         }
-        else {
-            HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+        else if (!HttpContext.WebSockets.IsWebSocketRequest) {
             _logger.LogInformation("Rejected request from {}:{} as it is not a WebSocket request", clientIp, clientPort);
         }
     }
 
-    private async Task SetupWSConnection(WebSocket conn, Guid workspaceId, Guid documentId) {
-        var docExists = _updatesLogic.VerifyExists(workspaceId, documentId);
-        SharedDoc? sharedDoc;
+    private async Task<bool> VerifyRequestParams(Guid workspaceId, Guid documentId) {
+        var docExists = await _updatesLogic.VerifyExistsAsync(workspaceId, documentId);
+
         if (!docExists) {
             HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
             await HttpContext.Response.WriteAsync("Document doesn't exist");
@@ -52,9 +53,15 @@ public class UpdatesController : BaseController {
             var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
             var clientPort = HttpContext.Connection.RemotePort.ToString();
             _logger.LogInformation("Requested document (workspaceId: {}, documentId: {}) from {}:{} doesn't exist", workspaceId, documentId, clientIp, clientPort);
-            return;
+            return false;
         }
-        else if (docs.TryGetValue((workspaceId, documentId), out sharedDoc)) {
+
+        return true;
+    }
+
+    private async Task SetupWSConnection(WebSocket conn, Guid workspaceId, Guid documentId) {
+
+        if (docs.TryGetValue((workspaceId, documentId), out SharedDoc? sharedDoc)) {
             sharedDoc.Conns.Add(conn);
         }
         else {
@@ -105,6 +112,14 @@ public class UpdatesController : BaseController {
             catch (WebSocketException) {
                 CloseConnection(doc, conn);
                 _logger.LogInformation("Closing connection from {}:{}", clientIp, clientPort);
+                break;
+            }
+            catch (CantLoadDocumentContentException) {
+                CloseConnection(doc, conn);
+                break;
+            }
+            catch (FailedToQueueUpdateException) {
+                CloseConnection(doc, conn);
                 break;
             }
         }

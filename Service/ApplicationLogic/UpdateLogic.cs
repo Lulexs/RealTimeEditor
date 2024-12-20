@@ -1,8 +1,6 @@
 using System.Text.Json;
 using ApplicationLogic.Dtos;
-using Cassandra;
 using Models;
-using Persistence;
 using Persistence.DocumentRepository;
 
 namespace ApplicationLogic;
@@ -23,7 +21,9 @@ public class UpdateLogic {
             return;
 
         byte[] update_bytes = Convert.FromBase64String(deserializedMessage.Update);
-        long update_id = BitConverter.ToInt64(update_bytes);
+
+        Random random = new();
+        long update_id = BitConverter.ToInt64(update_bytes) + random.NextInt64();
         UpdatesBySnapshot update = new() {
             DocumentId = deserializedMessage.DocumentId,
             SnapshotId = "snapshot1",
