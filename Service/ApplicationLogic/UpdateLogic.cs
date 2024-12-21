@@ -31,7 +31,7 @@ public class UpdateLogic {
         writeTransaction.Commit();
 
         Transaction readTransaction = doc.ReadTransaction();
-        var updatedContent = readTransaction.StateDiffV1(null);
+        var updatedContent = readTransaction.StateDiffV1([0]);
         readTransaction.Commit();
 
         await _docRepoRed.UpdateCacheForDocument(documentId, updatedContent);
@@ -56,11 +56,8 @@ public class UpdateLogic {
             PayLoad = update_bytes
         };
 
-        Task task1 = _docRepoCass.SaveUpdateAsync(update);
-        Task task2 = UpdateCacheForDocument(update.DocumentId, update_bytes);
-
         try {
-            await task2;
+            await UpdateCacheForDocument(update.DocumentId, update_bytes);
             _logger.LogInformation("Update {}/{}/{} cached", update.DocumentId, update.SnapshotId, update.UpdateId);
         }
         catch (Exception ec) {
@@ -68,7 +65,7 @@ public class UpdateLogic {
         }
 
         try {
-            await task1;
+            await _docRepoCass.SaveUpdateAsync(update);
             _logger.LogInformation("Update {}/{}/{} persisted to cassandra", update.DocumentId, update.SnapshotId, update.UpdateId);
         }
         catch (Exception ec) {
