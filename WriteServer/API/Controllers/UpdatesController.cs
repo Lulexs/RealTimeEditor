@@ -22,41 +22,64 @@ public class UpdatesController : BaseController {
     public async Task Get(string workspaceGuid, string documentGuid) {
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
         var clientPort = HttpContext.Connection.RemotePort.ToString();
-
-        _logger.LogInformation("Incoming WebSocket request from {}:{}", clientIp, clientPort);
+        _logger.LogInformation("Incoming WebSocket request from {ClientIp}:{ClientPort}", clientIp, clientPort);
 
         if (!Guid.TryParse(workspaceGuid, out var workspaceId) || !Guid.TryParse(documentGuid, out var documentId)) {
-            HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-            await HttpContext.Response.WriteAsync("Invalid GUID format");
-            _logger.LogInformation("Rejected WebSocket connection from {}:{} for workspace {} and document {} as id is not guid", clientIp, clientPort, workspaceGuid, documentGuid);
+            await CloseWithErrorAsync(
+                WebSocketCloseStatus.InvalidPayloadData,
+                "Invalid GUID format",
+                $"Rejected WebSocket connection from {clientIp}:{clientPort} for workspace {workspaceGuid} and document {documentGuid} as id is not guid"
+            );
             return;
         }
 
-        if (HttpContext.WebSockets.IsWebSocketRequest && await VerifyRequestParams(workspaceId, documentId)) {
-            using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
+        if (!HttpContext.WebSockets.IsWebSocketRequest) {
+            await CloseWithErrorAsync(
+                WebSocketCloseStatus.ProtocolError,
+                "HTTP endpoint requires WebSocket protocol",
+                $"Rejected request from {clientIp}:{clientPort} as it is not a WebSocket request"
+            );
+            return;
+        }
 
-            _logger.LogInformation("Accepted WebSocket connection from {}:{} for workspace {} and document {}", clientIp, clientPort, workspaceId, documentId);
-            await SetupWSConnection(webSocket, workspaceId, documentId);
+        if (!await VerifyRequestParams(workspaceId, documentId)) {
+            return;
         }
-        else if (!HttpContext.WebSockets.IsWebSocketRequest) {
-            _logger.LogInformation("Rejected request from {}:{} as it is not a WebSocket request", clientIp, clientPort);
-        }
+
+        using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
+        _logger.LogInformation("Accepted WebSocket connection from {ClientIp}:{ClientPort} for workspace {WorkspaceId} and document {DocumentId}",
+            clientIp, clientPort, workspaceId, documentId);
+
+        await SetupWSConnection(webSocket, workspaceId, documentId);
     }
 
     private async Task<bool> VerifyRequestParams(Guid workspaceId, Guid documentId) {
         var docExists = await _updatesLogic.VerifyExistsAsync(workspaceId, documentId);
-
         if (!docExists) {
-            HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
-            await HttpContext.Response.WriteAsync("Document doesn't exist");
-
             var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
             var clientPort = HttpContext.Connection.RemotePort.ToString();
-            _logger.LogInformation("Requested document (workspaceId: {}, documentId: {}) from {}:{} doesn't exist", workspaceId, documentId, clientIp, clientPort);
+
+            await CloseWithErrorAsync(
+                WebSocketCloseStatus.InvalidPayloadData,
+                "Document doesn't exist",
+                $"Requested document (workspaceId: {workspaceId}, documentId: {documentId}) from {clientIp}:{clientPort} doesn't exist"
+            );
             return false;
         }
-
         return true;
+    }
+
+    private async Task CloseWithErrorAsync(WebSocketCloseStatus status, string reason, string logMessage) {
+        if (HttpContext.WebSockets.IsWebSocketRequest) {
+            using var ws = await HttpContext.WebSockets.AcceptWebSocketAsync();
+            await ws.CloseAsync(status, reason, CancellationToken.None);
+        }
+        else {
+            HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await HttpContext.Response.WriteAsync(reason);
+        }
+
+        _logger.LogInformation(logMessage);
     }
 
     private async Task SetupWSConnection(WebSocket conn, Guid workspaceId, Guid documentId) {

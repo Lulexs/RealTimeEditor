@@ -11,11 +11,13 @@ import { CollaborationPlugin } from "@lexical/react/LexicalCollaborationPlugin";
 import { Provider } from "@lexical/yjs";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
-import {getRandomUserProfile} from "../getRandomUserProfile"
+import { getRandomUserProfile } from "../getRandomUserProfile";
 import { useCallback, useEffect, useState } from "react";
 import { theme } from "./Theming/EditorThemes";
 import { ActiveUserProfile } from "./Interfaces/ActiveUserProfile";
 import "./Theming/theming.css";
+import { notifications } from "@mantine/notifications";
+import LoadingTrackerPlugin from "./Plugins/LoadingTrackerPlugin";
 
 function getDocFromMap(id: string, yjsDocMap: Map<string, Y.Doc>): Y.Doc {
   let doc = yjsDocMap.get(id);
@@ -43,6 +45,9 @@ export default function Editor() {
   const [activeUsers, setActiveUsers] = useState<ActiveUserProfile[]>([]);
   const [yjsProvider, setYjsProvider] = useState<null | Provider>(null);
   const [providerName] = useState("websocket");
+  const [connectionStatus, setConnectionStatus] = useState<
+    "disconnected" | "connecting" | "connected" | null
+  >(null);
 
   const handleAwarenessUpdate = useCallback(() => {
     const awareness = yjsProvider?.awareness;
@@ -72,6 +77,33 @@ export default function Editor() {
         connect: true,
       });
 
+      provider.on("connection-close", (e) => {
+        provider.shouldConnect = false;
+        notifications.show({
+          title: "Connection failed",
+          message: e?.reason,
+          autoClose: false,
+          color: "red",
+        });
+        notifications.show({
+          title: "Connection failed",
+          message: e?.reason,
+          autoClose: false,
+          color: "red",
+        });
+      });
+
+      provider.on("status", (s) => {
+        setConnectionStatus(s.status);
+        if (s.status == "connected") {
+          notifications.show({
+            title: "Preparing document",
+            message: "Please wait while we prepare document's content",
+            loading: true,
+          });
+        }
+      });
+
       // @ts-ignore
       setTimeout(() => setYjsProvider(provider), 0);
 
@@ -82,24 +114,29 @@ export default function Editor() {
   );
 
   return (
-    <LexicalComposer initialConfig={initialConfig}>
-      <CollaborationPlugin
-        id="ws/bb4f9ca1-41ec-469c-bbc8-666666666666/0d49e653-9d02-4339-98a2-f122222425b2"
-        shouldBootstrap={false}
-        providerFactory={createProvider}
-        username={userProfile.name}
-        cursorColor={userProfile.color}
-      />
-      <ToolbarPlugin myProfile={userProfile} otherUsers={activeUsers} />
-      <ListPlugin />
-      <div className={classes.editorContainer}>
-        <RichTextPlugin
-          contentEditable={
-            <ContentEditable className={classes.editorContent} />
-          }
-          ErrorBoundary={LexicalErrorBoundary}
+    <>
+      <LexicalComposer initialConfig={initialConfig}>
+        <LoadingTrackerPlugin
+          onFirstContentLoad={() => notifications.clean()}
         />
-      </div>
-    </LexicalComposer>
+        <CollaborationPlugin
+          id="ws/bb4f9ca1-41ec-469c-bbc8-666666666666/0d49e653-9d02-4339-98a2-f122222425b2"
+          shouldBootstrap={false}
+          providerFactory={createProvider}
+          username={userProfile.name}
+          cursorColor={userProfile.color}
+        />
+        <ToolbarPlugin myProfile={userProfile} otherUsers={activeUsers} />
+        <ListPlugin />
+        <div className={classes.editorContainer}>
+          <RichTextPlugin
+            contentEditable={
+              <ContentEditable className={classes.editorContent} />
+            }
+            ErrorBoundary={LexicalErrorBoundary}
+          />
+        </div>
+      </LexicalComposer>
+    </>
   );
 }
