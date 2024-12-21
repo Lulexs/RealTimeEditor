@@ -1,4 +1,4 @@
-import { UserProfile } from "./Editor/Interfaces/UserProfile";
+import { UserProfile } from "./features/Editor/Interfaces/UserProfile";
 
 const entries: [string, string][] = [
   ["Arabian", "#7d0000"],

@@ -8,28 +8,38 @@ import {
   Image,
 } from "@mantine/core";
 import styles from "./HomePage.module.css";
-import hero from "../assets/cover.gif";
+import hero from "../../assets/cover.gif";
+import { useNavigate } from "react-router";
 
 function HomePage() {
+  const navigate = useNavigate();
+
   return (
     <Container size="md" py="xl" className={styles.container}>
-      {/* Header Section */}
       <Group mb="xl" className={styles.header}>
         <Title order={1} className={styles.logo}>
           CollabDocs
         </Title>
         <Group>
-          <Button variant="outline" className={styles.button}>
+          <Button
+            variant="outline"
+            className={styles.button}
+            onClick={() => navigate("/login")}
+          >
             Login
           </Button>
-          <Button className={styles.button}>Register</Button>
+          <Button
+            className={styles.button}
+            onClick={() => navigate("/register")}
+          >
+            Register
+          </Button>
         </Group>
       </Group>
 
-      {/* Hero Section */}
       <Stack align="center" gap="xl" className={styles.hero}>
         <Image
-          src={hero} // Replace with an appropriate image URL
+          src={hero}
           alt="Collaboration Illustration"
           radius="md"
           className={styles.heroImage}
@@ -47,7 +57,6 @@ function HomePage() {
         </Button>
       </Stack>
 
-      {/* Features Section */}
       <Stack mt="xl" gap="xl" className={styles.featuresSection}>
         <Title order={3} className={styles.featuresTitle}>
           Why Choose CollabDocs?

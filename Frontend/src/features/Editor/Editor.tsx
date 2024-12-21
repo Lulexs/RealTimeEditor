@@ -11,7 +11,7 @@ import { CollaborationPlugin } from "@lexical/react/LexicalCollaborationPlugin";
 import { Provider } from "@lexical/yjs";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
-import { getRandomUserProfile } from "../getRandomUserProfile";
+import { getRandomUserProfile } from "../../getRandomUserProfile";
 import { useCallback, useEffect, useState } from "react";
 import { theme } from "./Theming/EditorThemes";
 import { ActiveUserProfile } from "./Interfaces/ActiveUserProfile";
