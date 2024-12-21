@@ -9,14 +9,21 @@ public class DocumentRepositoryRedis {
     public async Task<bool> VerifyDocumentExistsAsync(Guid documentId) {
         var db = RedisSessionManager.GetDatabase();
 
-        bool exists = await db.KeyExistsAsync(documentId.ToString());
+        bool exists = await db.KeyExistsAsync($"doc:{documentId}:content");
         return exists;
     }
 
-    public async void CacheDocumentAsync(Guid docId) {
+    public async Task<byte[]?> LoadCachedDocumentAsync(Guid docId) {
+        var db = RedisSessionManager.GetDatabase();
+
+        byte[]? content = await db.StringGetAsync($"doc:{docId}:content");
+        return content;
+    }
+
+    public async Task CacheDocumentAsync(Guid docId, byte[] content) {
         IDatabase database = RedisSessionManager.GetDatabase();
 
-        await database.StringSetAsync(docId.ToString(), "1");
+        await database.StringSetAsync($"doc:{docId}:content", content);
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using System.Linq;
 using ApplicationLogic.Exceptions;
 using Microsoft.Extensions.Logging;
 using Persistence.DocumentRepository;
@@ -24,19 +25,35 @@ public class UpdatesLogic {
             if (await _docRepoRed.VerifyDocumentExistsAsync(docId)) {
                 return true;
             }
+        }
+        catch (Exception e) {
+            _logger.LogError("Error trying to verify document's existance using redis: {}", e.Message);
+        }
 
-            else if (await _docRepoCass.VerifyExistsAsync(workspaceId, docId)) {
+        try {
+            if (await _docRepoCass.VerifyExistsAsync(workspaceId, docId)) {
                 return true;
             }
+        }
+        catch (Exception e) {
+            _logger.LogError("Error trying to verify document's existance using cassandra: {}", e.Message);
+        }
 
-            return false;
-        }
-        catch (Exception) {
-            return false;
-        }
+        return false;
     }
 
     public async Task<byte[]> GetDocumentBytes(Guid docId, byte[] stateVector) {
+        try {
+            byte[]? docContent = await _docRepoRed.LoadCachedDocumentAsync(docId);
+            if (docContent != null) {
+                _logger.LogInformation("Successfully acquired document bytes for document {} from Redis", docId);
+                return docContent;
+            }
+        }
+        catch (Exception ec) {
+            _logger.LogError("Failed to acquired document content from Redis due to {}", ec.Message);
+        }
+
         try {
             List<byte[]> bytes = await _docRepoCass.GetSnapshot(docId, "snapshot1");
 
@@ -52,7 +69,7 @@ public class UpdatesLogic {
             readTransaction.Commit();
 
             try {
-                _docRepoRed.CacheDocumentAsync(docId);
+                await _docRepoRed.CacheDocumentAsync(docId, mergedUpdates);
             }
             catch (Exception) {
                 _logger.LogError("Error trying to cache content for document {}", docId);
@@ -71,7 +88,7 @@ public class UpdatesLogic {
     public async void UpdateDoc(Guid workspaceId, Guid docId, SyncUpdateMessage updateMsg) {
         try {
             await _docRepoRed.SaveUpdateAsync(docId, updateMsg.Update);
-            _logger.LogInformation("Update to {}:{} successfully written to message queue", workspaceId, docId);
+            _logger.Log(LogLevel.None, "Update to {}:{} successfully written to message queue", workspaceId, docId);
         }
         catch (Exception ec) {
             _logger.LogError("Update to {}:{} could not be written to message queue due to {}", workspaceId, docId, ec.Message);

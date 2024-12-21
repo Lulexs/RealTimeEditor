@@ -1,15 +1,40 @@
 using System.Text.Json;
 using ApplicationLogic.Dtos;
+using Microsoft.Extensions.Logging;
 using Models;
 using Persistence.DocumentRepository;
+using YDotNet.Document;
+using YDotNet.Document.Transactions;
 
 namespace ApplicationLogic;
 
 public class UpdateLogic {
     private readonly DocumentRepositoryCassandra _docRepoCass;
+    private readonly DocumentRepositoryRedis _docRepoRed;
+    private readonly ILogger<UpdateLogic> _logger;
 
-    public UpdateLogic(DocumentRepositoryCassandra docRepoCass) {
+    public UpdateLogic(DocumentRepositoryCassandra docRepoCass, DocumentRepositoryRedis docRepoRed, ILogger<UpdateLogic> logger) {
         _docRepoCass = docRepoCass;
+        _docRepoRed = docRepoRed;
+        _logger = logger;
+    }
+
+    private async Task UpdateCacheForDocument(Guid documentId, byte[] newContent) {
+        byte[]? oldContent = await _docRepoRed.ReadDocumentContent(documentId);
+        if (oldContent == null)
+            return;
+
+        Doc doc = new();
+        Transaction writeTransaction = doc.WriteTransaction();
+        writeTransaction.ApplyV1(oldContent);
+        writeTransaction.ApplyV1(newContent);
+        writeTransaction.Commit();
+
+        Transaction readTransaction = doc.ReadTransaction();
+        var updatedContent = readTransaction.StateDiffV1(null);
+        readTransaction.Commit();
+
+        await _docRepoRed.UpdateCacheForDocument(documentId, updatedContent);
     }
 
     public async Task SaveUpdate(string? message) {
@@ -31,6 +56,24 @@ public class UpdateLogic {
             PayLoad = update_bytes
         };
 
-        await _docRepoCass.SaveUpdateAsync(update);
+        Task task1 = _docRepoCass.SaveUpdateAsync(update);
+        Task task2 = UpdateCacheForDocument(update.DocumentId, update_bytes);
+
+        try {
+            await task2;
+            _logger.LogInformation("Update {}/{}/{} cached", update.DocumentId, update.SnapshotId, update.UpdateId);
+        }
+        catch (Exception ec) {
+            _logger.LogError("Caching update failed due to {}", ec.Message);
+        }
+
+        try {
+            await task1;
+            _logger.LogInformation("Update {}/{}/{} persisted to cassandra", update.DocumentId, update.SnapshotId, update.UpdateId);
+        }
+        catch (Exception ec) {
+            _logger.LogError("Saving document update {}/{}/{} in cassandra failed due to {}", update.DocumentId, update.SnapshotId, update.UpdateId, ec.Message);
+        }
+
     }
 }
