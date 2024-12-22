@@ -2,7 +2,7 @@ import { Box, Paper, Text, Group, Avatar } from "@mantine/core";
 import { useContextMenu } from "mantine-contextmenu";
 import WorkspaceItem from "./WorkspaceItem";
 import styles from "./ControlPanel.module.css";
-import { IconPlus, IconLogout } from "@tabler/icons-react";
+import { IconPlus, IconLogout, IconJoinBevel } from "@tabler/icons-react";
 import { useStore } from "../../app/stores/store";
 
 const workspaces = [
@@ -38,6 +38,12 @@ export default function ControlPanel() {
       icon: <IconPlus size={16} />,
       title: "New Workspace",
       onClick: () => console.log("Create new workspace"),
+    },
+    {
+      key: "join-workspace",
+      icon: <IconJoinBevel size={16} />,
+      title: "Join Workspace",
+      onClick: () => console.log("Join workspace"),
     },
   ];
 

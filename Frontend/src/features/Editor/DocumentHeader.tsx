@@ -24,6 +24,7 @@ import {
   WifiOff,
   ChevronDown,
   ChevronUp,
+  GitFork,
 } from "lucide-react";
 import { EditorProps } from "./Editor";
 
@@ -71,6 +72,10 @@ const DocumentHeader = ({
 
   const handleCreateSnapshot = () => {
     console.log("Creating new snapshot for document:", documentId);
+  };
+
+  const handleForkSnapshot = () => {
+    console.log("Forking snapshot to new document: ", documentId);
   };
 
   const statusConfig = getStatusConfig(connectionStatus);
@@ -179,15 +184,24 @@ const DocumentHeader = ({
                 },
               })}
             />
-            <Button
-              leftSection={<Plus size={20} />}
-              variant="light"
-              onClick={handleCreateSnapshot}
-              color="blue"
-              fullWidth
-            >
-              Create Snapshot
-            </Button>
+            <Group>
+              <Button
+                leftSection={<Plus size={20} />}
+                variant="light"
+                onClick={handleCreateSnapshot}
+                color="blue"
+              >
+                Create Snapshot
+              </Button>
+              <Button
+                leftSection={<GitFork size={20} />}
+                variant="light"
+                color="blue"
+                onClick={handleForkSnapshot}
+              >
+                Fork snapshot
+              </Button>
+            </Group>
           </Stack>
 
           <Stack gap="xs" align="end">

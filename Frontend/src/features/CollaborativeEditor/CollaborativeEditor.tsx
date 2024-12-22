@@ -32,7 +32,7 @@ interface EditorProps {
 
 export function CollaborativeEditor() {
   const [isPanelVisible, setPanelVisible] = useState(true);
-  const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<string | null>("1");
 
   const togglePanel = () => {
     console.log("Here");

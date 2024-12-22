@@ -34,14 +34,13 @@ const Account = {
 };
 
 const Workspaces = {
-  list: () => requests.get<Workspace[]>("/workspaces"),
-  create: (name: string, ownername: string) =>
+  list: (username: string) =>
+    requests.get<Workspace[]>(`/workspaces/${username}`),
+  create: (name: string, ownerName: string) =>
     requests.post<Workspace>("/workspaces", {
       Name: name,
-      OwnerName: ownername,
+      OwnerName: ownerName,
     }),
-  delete: (ownername: string, workspaceid: string) =>
-    requests.del<void>(`/workspaces/${ownername}/${workspaceid}`),
 };
 
 const agent = {
