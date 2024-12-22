@@ -57,7 +57,7 @@ function HomePage() {
         </Button>
       </Stack>
 
-      <Stack mt="xl" gap="xl" className={styles.featuresSection}>
+      <Stack mt="xl" gap="xl" align="center" className={styles.featuresSection}>
         <Title order={3} className={styles.featuresTitle}>
           Why Choose CollabDocs?
         </Title>
@@ -68,15 +68,6 @@ function HomePage() {
             </Title>
             <Text className={styles.featureText}>
               See changes instantly as your team collaborates on documents.
-            </Text>
-          </Stack>
-          <Stack className={styles.featureCard}>
-            <Title order={4} className={styles.featureTitle}>
-              Secure and Private
-            </Title>
-            <Text className={styles.featureText}>
-              Your data is encrypted and protected with industry-leading
-              security standards.
             </Text>
           </Stack>
           <Stack className={styles.featureCard}>

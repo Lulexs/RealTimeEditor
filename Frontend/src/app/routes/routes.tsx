@@ -2,6 +2,7 @@ import { createBrowserRouter, RouteObject } from "react-router";
 import HomePage from "../../features/HomePage/HomePage";
 import Login from "../../features/Auth/Login";
 import Register from "../../features/Auth/Register";
+import { CollaborativeEditor } from "../../features/CollaborativeEditor/CollaborativeEditor";
 
 export const routes: RouteObject[] = [
   {
@@ -15,6 +16,10 @@ export const routes: RouteObject[] = [
   {
     path: "/register",
     element: <Register />,
+  },
+  {
+    path: "/nodocument",
+    element: <CollaborativeEditor />,
   },
 ];
 

@@ -1,0 +1,50 @@
+.container {
+  width: 300px;
+}
+
+.title {
+  margin-bottom: 1rem;
+}
+
+.workspaceItem {
+  margin-bottom: 0.25rem;
+}
+
+.workspaceButton {
+  display: block;
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 4px;
+  margin-top: 15px;
+  margin-bottom: 15px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.workspaceButton:hover {
+  background-color: var(--mantine-color-gray-0);
+}
+
+.documentList {
+  margin-left: 1.875rem;
+  margin-top: 0.25rem;
+}
+
+.documentButton {
+  display: block;
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 4px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.userSection {
+  margin-top: auto;
+}
+
+.documentButton:hover {
+  background-color: var(--mantine-color-gray-0);
+}

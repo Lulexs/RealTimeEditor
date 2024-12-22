@@ -11,9 +11,11 @@ import {
   Box,
   Anchor,
   Flex,
+  Select,
 } from "@mantine/core";
 import { Link } from "react-router";
 import { Home } from "lucide-react";
+import { useStore } from "../../app/stores/store";
 
 const Login = () => {
   const form = useForm({
@@ -21,14 +23,18 @@ const Login = () => {
     initialValues: {
       username: "",
       password: "",
+      region: "",
     },
     validate: {
       username: (value) =>
         value.length > 3 ? null : "Username must be at least 3 characters",
       password: (value) =>
         value.length > 6 ? null : "Password must be at least 6 characters",
+      region: (value) => (value.length > 1 ? null : "Please select a region"),
     },
   });
+
+  const { userStore } = useStore();
 
   return (
     <Flex h="100vh">
@@ -45,7 +51,7 @@ const Login = () => {
               Home
             </Button>
           </Group>
-          <form onSubmit={form.onSubmit((values) => console.log(values))}>
+          <form onSubmit={form.onSubmit((values) => userStore.login(values))}>
             <Stack>
               <TextInput
                 withAsterisk
@@ -60,6 +66,22 @@ const Login = () => {
                 placeholder="Your password"
                 key={form.key("password")}
                 {...form.getInputProps("password")}
+              />
+              <Select
+                withAsterisk
+                label="Region"
+                placeholder="Select your region"
+                data={[
+                  "Aftica",
+                  "Asia",
+                  "Europe",
+                  "North America",
+                  "South America",
+                  "Australia",
+                  "Antarctica",
+                ]}
+                key={form.key("region")}
+                {...form.getInputProps("region")}
               />
             </Stack>
             <Group justify="space-between" mt="xl">
