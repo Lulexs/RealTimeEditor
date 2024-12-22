@@ -7,7 +7,9 @@ using YDotNet.Server.WebSockets;
 
 namespace API.Controllers;
 
-public class UpdatesController : BaseController {
+[ApiController]
+[Route("[controller]")]
+public class UpdatesController : ControllerBase {
 
     private readonly UpdatesLogic _updatesLogic;
     private static readonly ConcurrentDictionary<(Guid, Guid), SharedDoc> docs = [];

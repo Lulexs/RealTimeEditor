@@ -1,6 +1,8 @@
-import { User, UserLoginValues } from "../models/User";
+import { User, UserLoginValues, UserRegisterValues } from "../models/User";
 import { makeAutoObservable, runInAction } from "mobx";
 import { router } from "../routes/routes";
+import agent from "../api/agent";
+import { store } from "./store";
 
 export default class UserStore {
   user: User | null = null;
@@ -9,24 +11,25 @@ export default class UserStore {
     makeAutoObservable(this);
   }
 
-  get isLoggedIn() {
-    return this.user != null;
-  }
-
   login = async (value: UserLoginValues) => {
-    runInAction(
-      () =>
-        (this.user = {
-          region: "Serbia",
-          username: value.username,
-          avatar:
-            "https://raw.githubusercontent.com/mantinedev/mantine/master/.demo/avatars/avatar-9.png",
-        })
-    );
-    router.navigate("/nodocument");
+    try {
+      const user = await agent.Account.login(value);
+      runInAction(() => (this.user = user));
+      store.workspaceStore.loadWorkspaces();
+      router.navigate("/nodocument");
+    } catch (error) {
+      console.error(error);
+    }
   };
 
-  register = async () => {};
+  register = async (value: UserRegisterValues) => {
+    try {
+      await agent.Account.register(value);
+      router.navigate("/");
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   logout = () => {
     runInAction(() => (this.user = null));

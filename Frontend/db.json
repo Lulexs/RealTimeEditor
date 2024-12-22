@@ -1,0 +1,12 @@
+{
+  "users": [
+    {
+      "id": "aebf",
+      "username": "Lulexs",
+      "password": "Sifra123",
+      "email": "luleee@elfak.rs",
+      "region": "Europe",
+      "avatar": "https://raw.githubusercontent.com/mantinedev/mantine/master/.demo/avatars/avatar-9.png"
+    }
+  ]
+}

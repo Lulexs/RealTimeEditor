@@ -14,12 +14,15 @@ import {
   Anchor,
   Image,
   Flex,
+  Select,
 } from "@mantine/core";
 import { Link } from "react-router";
 import { Home } from "lucide-react";
+import { useStore } from "../../app/stores/store";
 
 const Register = () => {
   const [selectedAvatar, setSelectedAvatar] = useState(1);
+  const { userStore } = useStore();
 
   const form = useForm({
     initialValues: {
@@ -43,7 +46,7 @@ const Register = () => {
       ...values,
       avatar: `https://raw.githubusercontent.com/mantinedev/mantine/master/.demo/avatars/avatar-${selectedAvatar}.png`,
     };
-    console.log("Register values:", formData);
+    userStore.register(formData);
   };
 
   return (
@@ -72,18 +75,6 @@ const Register = () => {
                     placeholder="Your username"
                     error={form.errors.username}
                     {...form.getInputProps("username")}
-                    styles={(theme) => ({
-                      input: {
-                        borderColor: form.errors.username
-                          ? theme.colors.red[6]
-                          : undefined,
-                        "&:focus": {
-                          borderColor: form.errors.username
-                            ? theme.colors.red[6]
-                            : undefined,
-                        },
-                      },
-                    })}
                   />
 
                   <TextInput
@@ -92,38 +83,23 @@ const Register = () => {
                     placeholder="your@email.com"
                     error={form.errors.email}
                     {...form.getInputProps("email")}
-                    styles={(theme) => ({
-                      input: {
-                        borderColor: form.errors.email
-                          ? theme.colors.red[6]
-                          : undefined,
-                        "&:focus": {
-                          borderColor: form.errors.email
-                            ? theme.colors.red[6]
-                            : undefined,
-                        },
-                      },
-                    })}
                   />
 
-                  <TextInput
+                  <Select
                     withAsterisk
                     label="Region"
-                    placeholder="Your region"
-                    error={form.errors.region}
+                    placeholder="Select your region"
+                    data={[
+                      "Aftica",
+                      "Asia",
+                      "Europe",
+                      "North America",
+                      "South America",
+                      "Australia",
+                      "Antarctica",
+                    ]}
+                    key={form.key("region")}
                     {...form.getInputProps("region")}
-                    styles={(theme) => ({
-                      input: {
-                        borderColor: form.errors.region
-                          ? theme.colors.red[6]
-                          : undefined,
-                        "&:focus": {
-                          borderColor: form.errors.region
-                            ? theme.colors.red[6]
-                            : undefined,
-                        },
-                      },
-                    })}
                   />
 
                   <PasswordInput
@@ -132,18 +108,6 @@ const Register = () => {
                     placeholder="Your password"
                     error={form.errors.password}
                     {...form.getInputProps("password")}
-                    styles={(theme) => ({
-                      input: {
-                        borderColor: form.errors.password
-                          ? theme.colors.red[6]
-                          : undefined,
-                        "&:focus": {
-                          borderColor: form.errors.password
-                            ? theme.colors.red[6]
-                            : undefined,
-                        },
-                      },
-                    })}
                   />
                 </Stack>
               </Box>
