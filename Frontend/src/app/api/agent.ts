@@ -1,7 +1,12 @@
 import { notifications } from "@mantine/notifications";
 import axios, { AxiosError, AxiosResponse } from "axios";
-import { User, UserLoginValues, UserRegisterValues } from "../models/User";
-import Workspace from "../models/Workspace";
+import {
+  User,
+  UserInWorkspace,
+  UserLoginValues,
+  UserRegisterValues,
+} from "../models/User";
+import Workspace, { PermissionLevel } from "../models/Workspace";
 
 axios.defaults.baseURL = "http://localhost:5287";
 
@@ -41,6 +46,42 @@ const Workspaces = {
       Name: name,
       OwnerName: ownerName,
     }),
+  join: (username: string, link: string) =>
+    requests.post<Workspace>("/workspaces/join", {
+      Username: username,
+      JoinCode: link,
+    }),
+  delete: (workspaceId: string, username: string) =>
+    requests.del<void>(`/workspaces/${workspaceId}/${username}`),
+  changeName: (
+    workspaceId: string,
+    ownerUsername: string,
+    userUsername: string,
+    newName: string
+  ) =>
+    requests.put<void>(`/workspaces`, {
+      WorkspaceId: workspaceId,
+      OwnerUsername: ownerUsername,
+      UserUsername: userUsername,
+      NewName: newName,
+    }),
+  refresh: (workspaceId: string, ownerUsername: string) =>
+    requests.get<Workspace>(`/workspaces/${ownerUsername}/${workspaceId}`),
+  users: (workspaceId: string) =>
+    requests.get<UserInWorkspace[]>(`/workspaces/users/${workspaceId}`),
+  kick: (workspaceId: string, username: string, performer: string) =>
+    requests.del<void>(
+      `/workspaces/users/${workspaceId}/${username}/${performer}`
+    ),
+  permChange: (
+    username: string,
+    newPermLevel: PermissionLevel,
+    performer: string
+  ) =>
+    requests.put<void>(
+      `/workspaces/users/${username}/${newPermLevel}/${performer}`,
+      {}
+    ),
 };
 
 const agent = {

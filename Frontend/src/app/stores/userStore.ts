@@ -15,7 +15,7 @@ export default class UserStore {
     try {
       const user = await agent.Account.login(value);
       runInAction(() => (this.user = user));
-      store.workspaceStore.loadWorkspaces();
+      store.workspaceStore.loadWorkspaces(user.username);
       router.navigate("/nodocument");
     } catch (error) {
       console.error(error);
@@ -33,6 +33,7 @@ export default class UserStore {
 
   logout = () => {
     runInAction(() => (this.user = null));
+    
     router.navigate("/");
   };
 }

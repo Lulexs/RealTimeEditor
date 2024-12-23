@@ -8,7 +8,7 @@ export enum PermissionLevel {
 export default interface Workspace {
   workspaceId: string;
   workspaceName: string;
-  ownername: string;
-  premissionlevel: PermissionLevel;
-  createdat: Date;
+  ownerUsername: string;
+  permission: PermissionLevel;
+  createdAt: Date;
 }
