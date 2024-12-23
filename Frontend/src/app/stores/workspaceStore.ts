@@ -28,7 +28,10 @@ export default class WorkspaceStore {
   createWorkspace = async (name: string, username: string) => {
     try {
       const result = await agent.Workspaces.create(name, username);
-      runInAction(() => this.workspaces!.set(result.workspaceId, result));
+      runInAction(() => {
+        this.workspaces!.set(result.workspaceId, result);
+        store.documentStore.newEntry(result.workspaceId);
+      });
     } catch (error) {
       console.error(error);
     }
@@ -37,7 +40,10 @@ export default class WorkspaceStore {
   joinWorkspace = async (username: string, link: string) => {
     try {
       const result = await agent.Workspaces.join(username, link);
-      runInAction(() => this.workspaces!.set(result.workspaceId, result));
+      runInAction(() => {
+        this.workspaces!.set(result.workspaceId, result);
+        store.documentStore.newEntry(result.workspaceId);
+      });
     } catch (error) {
       console.error(error);
     }

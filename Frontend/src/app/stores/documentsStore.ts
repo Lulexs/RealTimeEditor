@@ -11,6 +11,10 @@ export default class DocumentStore {
     makeAutoObservable(this);
   }
 
+  newEntry = (workspaceId: string) => {
+    this.documents.set(workspaceId, new Map());
+  };
+
   populateDocuments = (workspaceIds: string[]) => {
     workspaceIds.forEach((id) => this.documents.set(id, new Map()));
   };
