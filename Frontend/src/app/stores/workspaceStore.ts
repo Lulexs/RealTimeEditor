@@ -2,6 +2,7 @@ import { makeAutoObservable, runInAction } from "mobx";
 import Workspace, { PermissionLevel } from "../models/Workspace";
 import agent from "../api/agent";
 import { UserInWorkspace } from "../models/User";
+import { store } from "./store";
 
 export default class WorkspaceStore {
   workspaces: Map<string, Workspace> | null = null;
@@ -17,6 +18,7 @@ export default class WorkspaceStore {
       runInAction(() => {
         this.workspaces = new Map();
         result.forEach((res) => this.workspaces!.set(res.workspaceId, res));
+        store.documentStore.populateDocuments(result.map((x) => x.workspaceId));
       });
     } catch (error) {
       console.error(error);
@@ -44,6 +46,7 @@ export default class WorkspaceStore {
   delete = async (workspaceId: string, username: string) => {
     try {
       await agent.Workspaces.delete(workspaceId, username);
+      store.documentStore.clearEntries(workspaceId);
       runInAction(() => this.workspaces!.delete(workspaceId));
     } catch (error) {
       console.error(error);
@@ -76,6 +79,7 @@ export default class WorkspaceStore {
   refresh = async (ownerUsername: string, workspaceId: string) => {
     try {
       const result = await agent.Workspaces.refresh(workspaceId, ownerUsername);
+      store.documentStore.loadDocuments(workspaceId);
       runInAction(() => {
         this.workspaces!.delete(workspaceId);
         this.workspaces!.set(workspaceId, result);

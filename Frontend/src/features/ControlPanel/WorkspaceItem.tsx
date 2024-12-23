@@ -2,7 +2,6 @@ import { Box, Text, Group, UnstyledButton } from "@mantine/core";
 import {
   IconChevronRight,
   IconChevronDown,
-  IconFileText,
   IconFolder,
   IconLink,
   IconPencil,
@@ -13,28 +12,26 @@ import {
 } from "@tabler/icons-react";
 import { useContextMenu } from "mantine-contextmenu";
 import styles from "./ControlPanel.module.css";
-import { useState } from "react";
-import { documentContextMenu } from "./ContextMenuActions";
+import { useRef, useState } from "react";
 import Workspace, { PermissionLevel } from "../../app/models/Workspace";
 import { useStore } from "../../app/stores/store";
 import GenerateCodeDialog from "./Dialogs/GenerateCodeDialog";
 import { useDisclosure } from "@mantine/hooks";
 import ChangeWorkspaceNameDialog from "./Dialogs/ChangeWorkspaceNameDialog";
 import ManageUsersDialog from "./Dialogs/ManageUsersDialog";
-
-interface Document {
-  id: number;
-  name: string;
-}
+import { observer } from "mobx-react-lite";
+import DocumentItem from "./DocumentItem";
+import CreateDocumentDialog from "./Dialogs/CreateDocumentDialog";
 
 interface WorkspaceItemProps {
   workspace: Workspace;
 }
 
-const WorkspaceItem = ({ workspace }: WorkspaceItemProps) => {
+const WorkspaceItem = observer(({ workspace }: WorkspaceItemProps) => {
   const { showContextMenu } = useContextMenu();
   const [expanded, setExpanded] = useState(false);
-  const { workspaceStore, userStore } = useStore();
+  const { workspaceStore, userStore, documentStore } = useStore();
+  const loadedRef = useRef<boolean>(false);
 
   const [
     generateCodeDialogOpened,
@@ -54,12 +51,19 @@ const WorkspaceItem = ({ workspace }: WorkspaceItemProps) => {
     { toggle: toggleManageUsersDialog, close: closeManageUsersDialog },
   ] = useDisclosure(false);
 
+  const [
+    createDocumentDialogOpened,
+    { toggle: toggleCreateDocumentDialog, close: closeCreateDocumentDialog },
+  ] = useDisclosure(false);
+
   const workspaceContextMenu = [
     {
       key: "new",
       icon: <IconPlus size={16} />,
       title: "New Document",
-      onClick: () => console.log("New document"),
+      onClick: () => {
+        toggleCreateDocumentDialog();
+      },
       requiredPermission: PermissionLevel.Admin,
     },
     {
@@ -115,7 +119,13 @@ const WorkspaceItem = ({ workspace }: WorkspaceItemProps) => {
     <>
       <Box className={styles.workspaceItem}>
         <UnstyledButton
-          onClick={() => setExpanded((p) => !p)}
+          onClick={() => {
+            if (loadedRef.current === false) {
+              documentStore.loadDocuments(workspace.workspaceId);
+              loadedRef.current = true;
+            }
+            setExpanded((p) => !p);
+          }}
           onContextMenu={showContextMenu(
             workspaceContextMenu
               .filter(
@@ -154,33 +164,19 @@ const WorkspaceItem = ({ workspace }: WorkspaceItemProps) => {
           </Group>
         </UnstyledButton>
 
-        {/* {expanded && (
-        <Box className={styles.documentList}>
-          {workspace.documents.map((doc) => (
-            <UnstyledButton
-              key={doc.id}
-              className={styles.documentButton}
-              onContextMenu={showContextMenu(documentContextMenu(), {
-                styles: {
-                  item: {
-                    padding: "8px 12px",
-                    margin: "4px 0",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                    transition: "background 0.3s ease",
-                    color: "red",
-                  },
-                },
-              })}
-            >
-              <Group>
-                <IconFileText />
-                <Text size="sm">{doc.name}</Text>
-              </Group>
-            </UnstyledButton>
-          ))}
-        </Box>
-      )} */}
+        {expanded && (
+          <Box className={styles.documentList}>
+            {[
+              ...documentStore.documents.get(workspace.workspaceId)!.values(),
+            ].map((doc) => (
+              <DocumentItem
+                key={doc.documentId}
+                document={doc}
+                permissionLevel={workspace.permission}
+              />
+            ))}
+          </Box>
+        )}
       </Box>
       <GenerateCodeDialog
         workspaceId={workspace.workspaceId}
@@ -217,8 +213,19 @@ const WorkspaceItem = ({ workspace }: WorkspaceItemProps) => {
           );
         }}
       />
+      <CreateDocumentDialog
+        opened={createDocumentDialogOpened}
+        onClose={closeCreateDocumentDialog}
+        onCreate={(docName) => {
+          documentStore.newDocument(
+            workspace.workspaceId,
+            docName,
+            userStore.user?.username ?? "InvalidUser"
+          );
+        }}
+      />
     </>
   );
-};
+});
 
 export default WorkspaceItem;

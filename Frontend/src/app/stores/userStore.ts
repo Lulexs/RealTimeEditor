@@ -33,7 +33,8 @@ export default class UserStore {
 
   logout = () => {
     runInAction(() => (this.user = null));
-    
+    store.workspaceStore.clearWorkspaces();
+    store.documentStore.clearDocuments();
     router.navigate("/");
   };
 }

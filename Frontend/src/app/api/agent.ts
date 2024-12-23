@@ -7,6 +7,7 @@ import {
   UserRegisterValues,
 } from "../models/User";
 import Workspace, { PermissionLevel } from "../models/Workspace";
+import { Document } from "../models/Document";
 
 axios.defaults.baseURL = "http://localhost:5287";
 
@@ -84,9 +85,33 @@ const Workspaces = {
     ),
 };
 
+const Documents = {
+  list: (workspaceId: string) =>
+    requests.get<Document[]>(`/documents/${workspaceId}`),
+  create: (
+    workspaceId: string,
+    documentName: string,
+    creatorUsername: string
+  ) =>
+    requests.post<Document>(`/documents`, {
+      workspaceId,
+      documentName,
+      creatorUsername,
+    }),
+  changeName: (workspaceId: string, documentId: string, newName: string) =>
+    requests.put<void>(`/documents`, {
+      WorkspaceId: workspaceId,
+      DocumentId: documentId,
+      NewName: newName,
+    }),
+  delete: (workspaceId: string, documentId: string, username: string) =>
+    requests.del<void>(`/documents/${workspaceId}/${documentId}/${username}`),
+};
+
 const agent = {
   Account,
   Workspaces,
+  Documents,
 };
 
 export default agent;
