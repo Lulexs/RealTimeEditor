@@ -11,7 +11,6 @@ import { CollaborationPlugin } from "@lexical/react/LexicalCollaborationPlugin";
 import { Provider } from "@lexical/yjs";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
-import { getRandomUserProfile } from "../../getRandomUserProfile";
 import { useCallback, useEffect, useState } from "react";
 import { theme } from "./Theming/EditorThemes";
 import { ActiveUserProfile } from "./Interfaces/ActiveUserProfile";
@@ -52,8 +51,7 @@ export default observer(function Editor() {
   >(null);
   const [contentLoaded, setContentLoaded] = useState(false);
 
-  const { documentStore } = useStore();
-  const [userProfile] = useState(() => getRandomUserProfile());
+  const { documentStore, userStore } = useStore();
 
   const handleAwarenessUpdate = useCallback(() => {
     const awareness = yjsProvider?.awareness;
@@ -145,10 +143,16 @@ export default observer(function Editor() {
           id="ws/bb4f9ca1-41ec-469c-bbc8-666666666666/0d49e653-9d02-4339-98a2-f122222425b2"
           shouldBootstrap={false}
           providerFactory={createProvider}
-          username={userProfile.name}
-          cursorColor={userProfile.color}
+          username={userStore.user?.username}
+          cursorColor={userStore.user?.avatar}
         />
-        <ToolbarPlugin myProfile={userProfile} otherUsers={activeUsers} />
+        <ToolbarPlugin
+          myProfile={{
+            name: userStore.user?.username!,
+            color: userStore.user?.avatar!,
+          }}
+          otherUsers={activeUsers}
+        />
         <ListPlugin />
         <div className={classes.editorContainer}>
           <RichTextPlugin

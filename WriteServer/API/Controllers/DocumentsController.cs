@@ -59,4 +59,19 @@ public class DocumentsController : ControllerBase {
         return Ok(new Snapshot("Testshot", DateTime.Now));
     }
 
+    [HttpPost("snapshots")]
+    public async Task<ActionResult<Document>> ForkSnapshot([FromBody] ForkSnapshotDto dto) {
+        Console.WriteLine($"Forking snapshot {dto.SnapshotName} to document {dto.DocumentName}");
+        await Task.Delay(10);
+        var doc = new Document() {
+            WorkspaceId = dto.WorkspaceId,
+            DocumentId = Guid.NewGuid(),
+            DocumentName = dto.DocumentName,
+            CreatorUsername = dto.Forker,
+            CreatedAt = DateTime.Now,
+            SnapshotIds = [new("snapshot1", DateTime.Now)]
+        };
+        return Ok(doc);
+    }
+
 }

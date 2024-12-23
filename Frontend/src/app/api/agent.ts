@@ -7,7 +7,7 @@ import {
   UserRegisterValues,
 } from "../models/User";
 import Workspace, { PermissionLevel } from "../models/Workspace";
-import { Document } from "../models/Document";
+import { Document, Snapshot } from "../models/Document";
 
 axios.defaults.baseURL = "http://localhost:5287";
 
@@ -106,6 +106,22 @@ const Documents = {
     }),
   delete: (workspaceId: string, documentId: string, username: string) =>
     requests.del<void>(`/documents/${workspaceId}/${documentId}/${username}`),
+  snapshot: (documentId: string) =>
+    requests.post<Snapshot>(`/documents/snapshots/${documentId}`, {}),
+  forkSnapshot: (
+    workspaceId: string,
+    documentId: string,
+    documentName: string,
+    snapshotName: string,
+    forker: string
+  ) =>
+    requests.post<Document>(`/documents/snapshots`, {
+      WorkspaceId: workspaceId,
+      DocumentId: documentId,
+      DocumentName: documentName,
+      SnapshotName: snapshotName,
+      Forker: forker,
+    }),
 };
 
 const agent = {

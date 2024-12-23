@@ -19,7 +19,7 @@ export default function ActiveUsersPlugin({
         withArrow
         position="bottom"
       >
-        <Avatar size="md" radius="xl" color={user.color}>
+        <Avatar size="md" radius="xl" src={user.color} color="white">
           {user.name[0].toUpperCase()}
         </Avatar>
       </Tooltip>

@@ -1,6 +1,7 @@
 import { makeAutoObservable, runInAction } from "mobx";
 import { Document } from "../models/Document";
 import agent from "../api/agent";
+import { notifications } from "@mantine/notifications";
 
 export default class DocumentStore {
   documents: Map<string, Map<string, Document>> = new Map();
@@ -92,6 +93,47 @@ export default class DocumentStore {
             this.documents.set(workspaceId, workspaceMap);
           }
         }
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  createSnapshot = async (documentId: string) => {
+    try {
+      const result = await agent.Documents.snapshot(documentId);
+      runInAction(() => {
+        this.selectedDocument?.snapshotIds.push(result);
+        console.log(this.documents);
+        notifications.show({
+          title: "Success",
+          message: `Successfully created snapshot ${result.name}, at ${new Date(
+            result.createdAt
+          ).toLocaleString()}`,
+        });
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  forkSnapshot = async (
+    workspaceId: string,
+    documentId: string,
+    documentName: string,
+    snapshotName: string,
+    forker: string
+  ) => {
+    try {
+      const result = await agent.Documents.forkSnapshot(
+        workspaceId,
+        documentId,
+        documentName,
+        snapshotName,
+        forker
+      );
+      runInAction(() => {
+        this.documents.get(workspaceId)!.set(result.documentId, result);
       });
     } catch (error) {
       console.error(error);
