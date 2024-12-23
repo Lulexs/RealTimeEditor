@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Box, ActionIcon, Transition, Paper } from "@mantine/core";
 import { IconChevronRight, IconChevronLeft } from "@tabler/icons-react";
 import classes from "./CollaborativeEditor.module.css";
@@ -6,14 +6,22 @@ import Editor from "../Editor/Editor";
 import WorkspacePanel from "../ControlPanel/ControlPanel";
 import { useStore } from "../../app/stores/store";
 import { observer } from "mobx-react-lite";
+import { useNavigate } from "react-router";
 
 export default observer(function CollaborativeEditor() {
   const [isPanelVisible, setPanelVisible] = useState(true);
-  const { documentStore } = useStore();
+  const { documentStore, userStore } = useStore();
+  const navigate = useNavigate();
 
   const togglePanel = () => {
     setPanelVisible(!isPanelVisible);
   };
+
+  useEffect(() => {
+    if (userStore.user == null) {
+      navigate("/");
+    }
+  }, []);
 
   return (
     <Box className={classes.container}>

@@ -21,6 +21,20 @@ import DocumentHeader from "./DocumentHeader";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../app/stores/store";
 
+const avatarToColor = new Map(
+  Object.entries({
+    "1": "#FF5733",
+    "2": "#33FF57",
+    "3": "#3357FF",
+    "4": "#FFFF33",
+    "5": "#FF33FF",
+    "6": "#33FFFF",
+    "7": "#FF9933",
+    "8": "#9933FF",
+    "9": "#33FF99",
+  })
+);
+
 function getDocFromMap(id: string, yjsDocMap: Map<string, Y.Doc>): Y.Doc {
   let doc = yjsDocMap.get(id);
 
@@ -144,7 +158,7 @@ export default observer(function Editor() {
           shouldBootstrap={false}
           providerFactory={createProvider}
           username={userStore.user?.username}
-          cursorColor={userStore.user?.avatar}
+          cursorColor={avatarToColor.get(userStore.user?.avatar.charAt(81)!)}
         />
         <ToolbarPlugin
           myProfile={{

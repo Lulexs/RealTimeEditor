@@ -21,6 +21,10 @@ export const routes: RouteObject[] = [
     path: "/nodocument",
     element: <CollaborativeEditor />,
   },
+  {
+    path: "/*",
+    element: <HomePage />,
+  },
 ];
 
 export const router = createBrowserRouter(routes);
