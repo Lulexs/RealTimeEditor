@@ -26,11 +26,12 @@ import {
   ChevronUp,
   GitFork,
 } from "lucide-react";
-import { EditorProps } from "./Editor";
+import { Document } from "../../app/models/Document";
 
 type ConnectionStatus = "connected" | "connecting" | "disconnected";
 
-interface DocumentHeaderProps extends EditorProps {
+interface DocumentHeaderProps {
+  document: Document;
   connectionStatus: ConnectionStatus;
 }
 
@@ -46,24 +47,19 @@ const getStatusConfig = (status: ConnectionStatus) => {
 };
 
 const DocumentHeader = ({
-  documentName,
-  createdAt,
-  workspaceId,
-  documentId,
-  ownerUsername,
-  snapshots,
+  document,
   connectionStatus,
 }: DocumentHeaderProps) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editedName, setEditedName] = useState(documentName);
+  const [editedName, setEditedName] = useState(document.documentName);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const snapshotOptions = Object.entries(snapshots).map(
-    ([key, date], index) => ({
-      value: key,
-      label: `Snapshot ${index + 1} (${new Date(date).toLocaleString()})`,
-    })
-  );
+  const snapshotOptions = document.snapshotIds.map((snapshot) => ({
+    value: snapshot.name,
+    label: `${snapshot.name} (${new Date(
+      snapshot.createdAt
+    ).toLocaleString()})`,
+  }));
 
   const handleNameSave = () => {
     console.log("Saving document name:", editedName);
@@ -71,11 +67,11 @@ const DocumentHeader = ({
   };
 
   const handleCreateSnapshot = () => {
-    console.log("Creating new snapshot for document:", documentId);
+    console.log("Creating new snapshot for document:", document.documentId);
   };
 
   const handleForkSnapshot = () => {
-    console.log("Forking snapshot to new document: ", documentId);
+    console.log("Forking snapshot to new document: ", document.documentId);
   };
 
   const statusConfig = getStatusConfig(connectionStatus);
@@ -85,7 +81,7 @@ const DocumentHeader = ({
       <Group justify="space-between" align="center" mb={isCollapsed ? 0 : "md"}>
         <Group gap="xs">
           <Title order={2} style={{ color: "#343a40" }}>
-            {documentName}
+            {document.documentName}
           </Title>
           {!isCollapsed && (
             <ActionIcon
@@ -132,7 +128,7 @@ const DocumentHeader = ({
                   color="red"
                   onClick={() => {
                     setIsEditing(false);
-                    setEditedName(documentName);
+                    setEditedName(document.documentName);
                   }}
                   size="lg"
                 >
@@ -145,7 +141,7 @@ const DocumentHeader = ({
               <Group gap="xs">
                 <Clock size={16} />
                 <Text size="sm" c="dimmed">
-                  Created {new Date(createdAt).toLocaleString()}
+                  Created {new Date(document.createdAt).toLocaleString()}
                 </Text>
               </Group>
               <Group gap="xs">
@@ -212,7 +208,7 @@ const DocumentHeader = ({
                 size="lg"
                 style={{ width: "fit-content" }}
               >
-                {workspaceId}
+                {document.workspaceId}
               </Badge>
             </Tooltip>
             <Tooltip label="Document ID (read-only)" position="left">
@@ -222,7 +218,7 @@ const DocumentHeader = ({
                 size="lg"
                 style={{ width: "fit-content" }}
               >
-                {documentId}
+                {document.documentId}
               </Badge>
             </Tooltip>
             <Badge
@@ -231,7 +227,7 @@ const DocumentHeader = ({
               size="lg"
               style={{ width: "fit-content" }}
             >
-              Owner: {ownerUsername}
+              Owner: {document.creatorUsername}
             </Badge>
           </Stack>
         </Group>

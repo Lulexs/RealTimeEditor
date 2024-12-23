@@ -58,6 +58,9 @@ const DocumentItem = observer(
         <UnstyledButton
           key={document.documentId}
           className={styles.documentButton}
+          onClick={() => {
+            documentStore.selectDocument(document);
+          }}
           onContextMenu={showContextMenu(
             documentContextMenu
               .filter((item) => item.requiredPermission <= permissionLevel)

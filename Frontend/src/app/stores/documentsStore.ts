@@ -25,6 +25,10 @@ export default class DocumentStore {
     });
   };
 
+  selectDocument = (doc: Document) => {
+    runInAction(() => (this.selectedDocument = doc));
+  };
+
   loadDocuments = async (workspaceId: string) => {
     try {
       const result = await agent.Documents.list(workspaceId);

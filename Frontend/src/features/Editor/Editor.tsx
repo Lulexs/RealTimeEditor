@@ -19,6 +19,8 @@ import "./Theming/theming.css";
 import { notifications } from "@mantine/notifications";
 import LoadingTrackerPlugin from "./Plugins/LoadingTrackerPlugin";
 import DocumentHeader from "./DocumentHeader";
+import { observer } from "mobx-react-lite";
+import { useStore } from "../../app/stores/store";
 
 function getDocFromMap(id: string, yjsDocMap: Map<string, Y.Doc>): Y.Doc {
   let doc = yjsDocMap.get(id);
@@ -41,29 +43,7 @@ const initialConfig = {
   editorState: null,
 };
 
-export interface EditorProps {
-  workspaceId: string;
-  documentId: string;
-  createdAt: Date;
-  ownerUsername: string;
-  documentName: string;
-  snapshots: { [key: string]: Date };
-}
-
-const defaultProps: EditorProps = {
-  workspaceId: "bb4f9ca1-41ec-469c-bbc8-666666666666",
-  documentId: "0d49e653-9d02-4339-98a2-f122222425b2",
-  createdAt: new Date(),
-  ownerUsername: "TestUser",
-  documentName: "Sample Document",
-  snapshots: {
-    snapshot1: new Date(),
-    snapshot2: new Date(),
-  },
-};
-
-export default function Editor(props: EditorProps = defaultProps) {
-  const [userProfile] = useState(() => getRandomUserProfile());
+export default observer(function Editor() {
   const [activeUsers, setActiveUsers] = useState<ActiveUserProfile[]>([]);
   const [yjsProvider, setYjsProvider] = useState<null | Provider>(null);
   const [providerName] = useState("websocket");
@@ -71,6 +51,9 @@ export default function Editor(props: EditorProps = defaultProps) {
     "disconnected" | "connecting" | "connected" | null
   >(null);
   const [contentLoaded, setContentLoaded] = useState(false);
+
+  const { documentStore } = useStore();
+  const [userProfile] = useState(() => getRandomUserProfile());
 
   const handleAwarenessUpdate = useCallback(() => {
     const awareness = yjsProvider?.awareness;
@@ -142,12 +125,7 @@ export default function Editor(props: EditorProps = defaultProps) {
     <>
       <DocumentHeader
         {...{
-          workspaceId: props.workspaceId ?? defaultProps.workspaceId,
-          documentId: props.documentId ?? defaultProps.documentId,
-          createdAt: props.createdAt ?? defaultProps.createdAt,
-          ownerUsername: props.ownerUsername ?? defaultProps.ownerUsername,
-          documentName: props.documentName ?? defaultProps.documentName,
-          snapshots: props.snapshots ?? defaultProps.snapshots,
+          document: documentStore.selectedDocument!,
           connectionStatus:
             connectionStatus != "connected" && connectionStatus != null
               ? connectionStatus
@@ -183,4 +161,4 @@ export default function Editor(props: EditorProps = defaultProps) {
       </LexicalComposer>
     </>
   );
-}
+});

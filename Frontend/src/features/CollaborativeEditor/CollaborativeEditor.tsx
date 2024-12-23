@@ -4,45 +4,15 @@ import { IconChevronRight, IconChevronLeft } from "@tabler/icons-react";
 import classes from "./CollaborativeEditor.module.css";
 import Editor from "../Editor/Editor";
 import WorkspacePanel from "../ControlPanel/ControlPanel";
+import { useStore } from "../../app/stores/store";
+import { observer } from "mobx-react-lite";
 
-interface Document {
-  id: string;
-  name: string;
-  workspaceId: string;
-  createdAt: string;
-  ownerUsername: string;
-  documentName: string;
-  snapshots: any[];
-}
-
-interface EditorProps {
-  workspaceId?: string;
-  documentId?: string;
-  createdAt?: string;
-  ownerUsername?: string;
-  documentName?: string;
-  snapshots?: any[];
-  userProfile: {
-    name: string;
-    color: string;
-  };
-  activeUsers: any[];
-  defaultProps: any;
-}
-
-export function CollaborativeEditor() {
+export default observer(function CollaborativeEditor() {
   const [isPanelVisible, setPanelVisible] = useState(true);
-  const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
+  const { documentStore } = useStore();
 
   const togglePanel = () => {
-    console.log("Here");
     setPanelVisible(!isPanelVisible);
-  };
-
-  const handleDocumentSelect = (workspaceId: number, documentId: number) => {
-    console.log(
-      `Selected document ${documentId} from workspace ${workspaceId}`
-    );
   };
 
   return (
@@ -65,7 +35,7 @@ export function CollaborativeEditor() {
       </Transition>
 
       <Box className={classes.editorContainer}>
-        {selectedDocument ? (
+        {documentStore.selectedDocument !== null ? (
           <Editor />
         ) : (
           <Box className={classes.noDocumentSelected}>
@@ -88,4 +58,4 @@ export function CollaborativeEditor() {
       </Box>
     </Box>
   );
-}
+});
