@@ -39,11 +39,11 @@ public class RedisSessionManager {
         var configuration = builder.Build();
 
         var redisConnectionString = configuration["RedisConnectionString"];
-        // var redisPassword = configuration["RedisPassword"];
-        string redisPassword = "";
+        var redisPassword = configuration["RedisPassword"];
+        //string redisPassword = "";
 
-        // var redisConfig = ConfigurationOptions.Parse(redisConnectionString!);
-        var redisConfig = ConfigurationOptions.Parse("localhost:6379");
+        var redisConfig = ConfigurationOptions.Parse(redisConnectionString!);
+        //var redisConfig = ConfigurationOptions.Parse("localhost:6379");
         if (!string.IsNullOrWhiteSpace(redisPassword)) {
             redisConfig.Password = redisPassword;
         }

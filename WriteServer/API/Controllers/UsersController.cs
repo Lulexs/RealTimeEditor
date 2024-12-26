@@ -1,18 +1,42 @@
 using ApplicationLogic.Dtos;
+using ApplicationLogic;
+using ApplicationLogic.Exceptions;
 
 namespace API.Controllers;
 
 [ApiController]
 [Route("[controller]")]
 public class UsersController : ControllerBase {
+
+    private readonly ILogger<UsersController> _logger;
+    private readonly UserLogic _userLogic;
+
+    public UsersController(ILogger<UsersController> logger, UserLogic userLogic) {
+        _logger = logger;
+        _userLogic = userLogic;
+    }
+
     [HttpPost("login")]
     public async Task<ActionResult<UserDto>> Login([FromBody] LoginDto dto) {
-        await Task.Run(() => { });
-        return Ok(new UserDto() {
-            Region = dto.Region,
-            Username = dto.Username,
-            Avatar = "https://raw.githubusercontent.com/mantinedev/mantine/master/.demo/avatars/avatar-5.png"
-        });
+        try {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.Password) || string.IsNullOrWhiteSpace(dto.Region)) {
+                return BadRequest("Invalid login data provided");
+            }
+
+            var userDto = await _userLogic.LoginUserAsync(dto);
+
+            return Ok(userDto);
+        }
+        catch(UserNotFoundException e) {
+            return NotFound(e.Message);
+        }
+        catch(InvalidUserPasswordException e) {
+            return Unauthorized(e.Message);
+        }
+        catch(Exception ex){
+            _logger.LogError(ex, "Unexpected error while logging in user");
+            return StatusCode(500, "Unexpected error while logging in user");
+        }
     }
 
     [HttpPost("register")]
