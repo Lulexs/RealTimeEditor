@@ -11,7 +11,7 @@ import { CollaborationPlugin } from "@lexical/react/LexicalCollaborationPlugin";
 import { Provider } from "@lexical/yjs";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { theme } from "./Theming/EditorThemes";
 import { ActiveUserProfile } from "./Interfaces/ActiveUserProfile";
 import "./Theming/theming.css";
@@ -48,24 +48,25 @@ function getDocFromMap(id: string, yjsDocMap: Map<string, Y.Doc>): Y.Doc {
   return doc;
 }
 
-const initialConfig = {
-  namespace: "MyEditor",
-  theme: theme,
-  onError: (error: Error) => console.log(error),
-  nodes: [HeadingNode, ListNode, ListItemNode],
-  editorState: null,
-};
-
 export default observer(function Editor() {
   const [activeUsers, setActiveUsers] = useState<ActiveUserProfile[]>([]);
   const [yjsProvider, setYjsProvider] = useState<null | Provider>(null);
-  const [providerName] = useState("websocket");
   const [connectionStatus, setConnectionStatus] = useState<
     "disconnected" | "connecting" | "connected" | null
   >(null);
   const [contentLoaded, setContentLoaded] = useState(false);
-
   const { documentStore, userStore } = useStore();
+
+  const composerKey = useMemo(() => {
+    return `${documentStore.selectedDocument?.workspaceId}-${documentStore.selectedDocument?.documentId}`;
+  }, [documentStore.selectedDocument]);
+
+  useEffect(() => {
+    setYjsProvider(null);
+    setConnectionStatus(null);
+    setContentLoaded(false);
+    setActiveUsers([]);
+  }, [documentStore.selectedDocument]);
 
   const handleAwarenessUpdate = useCallback(() => {
     const awareness = yjsProvider?.awareness;
@@ -84,7 +85,9 @@ export default observer(function Editor() {
     if (yjsProvider == null) return;
     yjsProvider.awareness.on("update", handleAwarenessUpdate);
 
-    return () => yjsProvider.awareness.off("update", handleAwarenessUpdate);
+    return () => {
+      yjsProvider.awareness.off("update", handleAwarenessUpdate);
+    };
   }, [yjsProvider, handleAwarenessUpdate]);
 
   const createProvider = useCallback(
@@ -104,18 +107,12 @@ export default observer(function Editor() {
             autoClose: false,
             color: "red",
           });
-          notifications.show({
-            title: "Connection failed",
-            message: e?.reason,
-            autoClose: false,
-            color: "red",
-          });
         }
       });
 
       provider.on("status", (s) => {
         setConnectionStatus(s.status);
-        if (s.status == "connected") {
+        if (s.status === "connected") {
           notifications.show({
             title: "Preparing document",
             message: "Please wait while we prepare document's content",
@@ -124,29 +121,43 @@ export default observer(function Editor() {
         }
       });
 
-      // @ts-ignore
+      //@ts-ignore
       setTimeout(() => setYjsProvider(provider), 0);
 
-      // @ts-ignore
+      //@ts-ignore
       return provider;
     },
-    [providerName]
+    []
   );
+
+  const initialConfig = useMemo(
+    () => ({
+      namespace: `MyEditor-${composerKey}`,
+      theme,
+      onError: (error: Error) => console.log(error),
+      nodes: [HeadingNode, ListNode, ListItemNode],
+      editorState: null,
+    }),
+    [composerKey]
+  );
+
+  if (!documentStore.selectedDocument) {
+    return null;
+  }
 
   return (
     <>
       <DocumentHeader
-        {...{
-          document: documentStore.selectedDocument!,
-          connectionStatus:
-            connectionStatus != "connected" && connectionStatus != null
-              ? connectionStatus
-              : contentLoaded
-              ? "connected"
-              : "connecting",
-        }}
+        document={documentStore.selectedDocument}
+        connectionStatus={
+          connectionStatus !== "connected" && connectionStatus != null
+            ? connectionStatus
+            : contentLoaded
+            ? "connected"
+            : "connecting"
+        }
       />
-      <LexicalComposer initialConfig={initialConfig}>
+      <LexicalComposer key={composerKey} initialConfig={initialConfig}>
         <LoadingTrackerPlugin
           onFirstContentLoad={() => {
             notifications.clean();
@@ -154,16 +165,16 @@ export default observer(function Editor() {
           }}
         />
         <CollaborationPlugin
-          id="ws/bb4f9ca1-41ec-469c-bbc8-666666666666/0d49e653-9d02-4339-98a2-f122222425b2"
+          id={`ws/${documentStore.selectedDocument.workspaceId}/${documentStore.selectedDocument.documentId}`}
           shouldBootstrap={false}
           providerFactory={createProvider}
-          username={userStore.user?.username}
-          cursorColor={avatarToColor.get(userStore.user?.avatar.charAt(81)!)}
+          username={userStore.user!.username}
+          cursorColor={avatarToColor.get(userStore.user!.avatar.charAt(81)!)}
         />
         <ToolbarPlugin
           myProfile={{
-            name: userStore.user?.username!,
-            color: userStore.user?.avatar!,
+            name: userStore.user!.username,
+            color: userStore.user!.avatar,
           }}
           otherUsers={activeUsers}
         />

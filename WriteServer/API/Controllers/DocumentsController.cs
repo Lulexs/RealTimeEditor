@@ -20,6 +20,11 @@ public class DocumentsController : ControllerBase {
             SnapshotIds = [new("snapshot1", DateTime.Now), new("snapshot2", DateTime.Now), new("snapshot3", DateTime.Now)]
         }).ToList();
 
+        documents[0].WorkspaceId = Guid.Parse("bb4f9ca1-41ec-469c-bbc8-666666666666");
+        documents[0].DocumentId = Guid.Parse("0d49e653-9d02-4339-98a2-f122222425b2");
+        documents[1].WorkspaceId = Guid.Parse("f6f0b661-8dd7-4122-954e-561621f92bbd");
+        documents[1].DocumentId = Guid.Parse("d8728b9a-da67-420d-832a-5e855d84274b");
+
         return Ok(documents);
     }
 
