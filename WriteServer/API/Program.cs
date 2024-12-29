@@ -1,5 +1,6 @@
 using ApplicationLogic;
 using Persistence.DocumentRepository;
+using Persistence.UserRepository;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,11 +10,16 @@ builder.Logging.AddDebug();
 builder.Logging.AddEventSourceLogger();
 
 var configuration = builder.Configuration;
+builder.Services.Configure<AppSettings>(configuration);
+
 builder.Services.AddSingleton(configuration);
 builder.Services.AddScoped<DocumentRepositoryCassandra>();
 builder.Services.AddScoped<DocumentRepositoryRedis>();
+builder.Services.AddScoped<UserRepositoryCassandra>();
+builder.Services.AddScoped<UserRepositoryRedis>();
 
 builder.Services.AddScoped<UpdatesLogic>();
+builder.Services.AddScoped<UserLogic>();
 
 builder.Services.AddControllers();
 
