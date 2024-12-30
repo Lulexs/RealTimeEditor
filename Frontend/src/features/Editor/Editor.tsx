@@ -20,6 +20,7 @@ import LoadingTrackerPlugin from "./Plugins/LoadingTrackerPlugin";
 import DocumentHeader from "./DocumentHeader";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../app/stores/store";
+import ReadOnlyPlugin from "./Plugins/ReadOnlyPlugin";
 
 const avatarToColor = new Map(
   Object.entries({
@@ -56,17 +57,18 @@ export default observer(function Editor() {
   >(null);
   const [contentLoaded, setContentLoaded] = useState(false);
   const { documentStore, userStore } = useStore();
+  const [snapshotId, setSnapshotId] = useState("snapshot1");
 
   const composerKey = useMemo(() => {
-    return `${documentStore.selectedDocument?.workspaceId}-${documentStore.selectedDocument?.documentId}`;
-  }, [documentStore.selectedDocument]);
+    return `${documentStore.selectedDocument?.workspaceId}-${documentStore.selectedDocument?.documentId}-${snapshotId}`;
+  }, [documentStore.selectedDocument, snapshotId]);
 
   useEffect(() => {
     setYjsProvider(null);
     setConnectionStatus(null);
     setContentLoaded(false);
     setActiveUsers([]);
-  }, [documentStore.selectedDocument]);
+  }, [documentStore.selectedDocument, snapshotId]);
 
   const handleAwarenessUpdate = useCallback(() => {
     const awareness = yjsProvider?.awareness;
@@ -149,6 +151,7 @@ export default observer(function Editor() {
     <>
       <DocumentHeader
         document={documentStore.selectedDocument}
+        selectSnapshot={setSnapshotId}
         connectionStatus={
           connectionStatus !== "connected" && connectionStatus != null
             ? connectionStatus
@@ -158,6 +161,7 @@ export default observer(function Editor() {
         }
       />
       <LexicalComposer key={composerKey} initialConfig={initialConfig}>
+        <ReadOnlyPlugin isReadOnly={snapshotId !== "snapshot1"} />
         <LoadingTrackerPlugin
           onFirstContentLoad={() => {
             notifications.clean();
@@ -165,19 +169,22 @@ export default observer(function Editor() {
           }}
         />
         <CollaborationPlugin
-          id={`ws/${documentStore.selectedDocument.workspaceId}/${documentStore.selectedDocument.documentId}`}
+          id={`ws/${documentStore.selectedDocument.workspaceId}/${documentStore.selectedDocument.documentId}/${snapshotId}`}
           shouldBootstrap={false}
           providerFactory={createProvider}
           username={userStore.user!.username}
           cursorColor={avatarToColor.get(userStore.user!.avatar.charAt(81)!)}
         />
-        <ToolbarPlugin
-          myProfile={{
-            name: userStore.user!.username,
-            color: userStore.user!.avatar,
-          }}
-          otherUsers={activeUsers}
-        />
+
+        {snapshotId === "snapshot1" && (
+          <ToolbarPlugin
+            myProfile={{
+              name: userStore.user!.username,
+              color: userStore.user!.avatar,
+            }}
+            otherUsers={activeUsers}
+          />
+        )}
         <ListPlugin />
         <div className={classes.editorContainer}>
           <RichTextPlugin

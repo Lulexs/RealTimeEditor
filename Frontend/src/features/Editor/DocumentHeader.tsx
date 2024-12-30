@@ -36,6 +36,7 @@ type ConnectionStatus = "connected" | "connecting" | "disconnected";
 interface DocumentHeaderProps {
   document: Document;
   connectionStatus: ConnectionStatus;
+  selectSnapshot: React.Dispatch<React.SetStateAction<string>>;
 }
 
 const getStatusConfig = (status: ConnectionStatus) => {
@@ -52,6 +53,7 @@ const getStatusConfig = (status: ConnectionStatus) => {
 const DocumentHeader = ({
   document,
   connectionStatus,
+  selectSnapshot,
 }: DocumentHeaderProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(document.documentName);
@@ -92,8 +94,7 @@ const DocumentHeader = ({
 
   const handleSnapshotChange = (value: string) => {
     setSelectedSnapshot(value);
-
-    // TODO: SET SNAPSHOT VALUE IN STORE
+    selectSnapshot((_) => value);
   };
 
   const statusConfig = getStatusConfig(connectionStatus);

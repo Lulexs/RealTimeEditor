@@ -8,15 +8,14 @@ public class DocumentRepositoryRedis {
     public async Task UpdateCacheForDocument(Guid documentId, byte[] newContent) {
         var db = RedisSessionManager.GetDatabase();
 
-        await db.StringSetAsync($"doc:{documentId}:content", newContent);
+        await db.StringSetAsync($"doc:{documentId}-snapshot1:content", newContent);
     }
 
     public async Task<byte[]?> ReadDocumentContent(Guid documentId) {
         var db = RedisSessionManager.GetDatabase();
 
-        byte[]? content = await db.StringGetAsync($"doc:{documentId}:content");
+        byte[]? content = await db.StringGetAsync($"doc:{documentId}-snapshot1:content");
         return content;
-
     }
 
     /// <summary>
@@ -27,13 +26,6 @@ public class DocumentRepositoryRedis {
         return null;
     }
 
-    /// <summary>
-    /// Read update from Redis pubsub
-    /// </summary>
-    /// <param name="document"></param>
-    public UpdatesBySnapshot ReadUpdate() {
-        return null;
-    }
 
     /// <summary>
     /// Read merged update from Redis pubsub

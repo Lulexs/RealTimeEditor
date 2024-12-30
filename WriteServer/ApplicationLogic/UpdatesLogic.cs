@@ -42,11 +42,11 @@ public class UpdatesLogic {
         return false;
     }
 
-    public async Task<byte[]> GetDocumentBytes(Guid docId, byte[] stateVector) {
+    public async Task<byte[]> GetDocumentBytes(Guid docId, string snapshotId, byte[] stateVector) {
         try {
-            byte[]? docContent = await _docRepoRed.LoadCachedDocumentAsync(docId);
+            byte[]? docContent = await _docRepoRed.LoadCachedDocumentAsync(docId, snapshotId);
             if (docContent != null) {
-                _logger.LogInformation("Successfully acquired document bytes for document {} from Redis", docId);
+                _logger.LogInformation("Successfully acquired document bytes for document {}/{} from Redis", docId, snapshotId);
                 return docContent;
             }
         }
@@ -55,7 +55,7 @@ public class UpdatesLogic {
         }
 
         try {
-            List<byte[]> bytes = await _docRepoCass.GetSnapshot(docId, "snapshot1");
+            List<byte[]> bytes = await _docRepoCass.GetSnapshot(docId, snapshotId);
 
             Doc doc = new();
             foreach (var update in bytes) {
@@ -69,18 +69,18 @@ public class UpdatesLogic {
             readTransaction.Commit();
 
             try {
-                await _docRepoRed.CacheDocumentAsync(docId, mergedUpdates);
+                await _docRepoRed.CacheDocumentAsync(docId, snapshotId, mergedUpdates);
             }
             catch (Exception) {
-                _logger.LogError("Error trying to cache content for document {}", docId);
+                _logger.LogError("Error trying to cache content for document {}/{}", docId, snapshotId);
             }
 
-            _logger.LogInformation("Successfully acquired document bytes for document {} from Cassandra, loaded {} updates", docId, bytes.Count());
+            _logger.LogInformation("Successfully acquired document bytes for document {}/{} from Cassandra, loaded {} updates", docId, snapshotId, bytes.Count);
             return mergedUpdates;
 
         }
         catch (Exception ec) {
-            _logger.LogError("Failed to acquire document bytes for document {} due to {}", docId, ec.Message);
+            _logger.LogError("Failed to acquire document bytes for document {}/{} due to {}", docId, snapshotId, ec.Message);
             throw new CantLoadDocumentContentException();
         }
     }

@@ -13,10 +13,6 @@ public class DocumentRepositoryCassandra {
 
     }
 
-    /// <summary>
-    /// Write update from Redis pubsub to Cassandra
-    /// </summary>
-    /// <param name="document"></param>
     public async Task SaveUpdateAsync(UpdatesBySnapshot update) {
         var session = CassandraSessionManager.GetSession();
         var mapper = new Mapper(session);

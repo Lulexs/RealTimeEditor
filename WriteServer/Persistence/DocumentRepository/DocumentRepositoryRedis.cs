@@ -13,17 +13,17 @@ public class DocumentRepositoryRedis {
         return exists;
     }
 
-    public async Task<byte[]?> LoadCachedDocumentAsync(Guid docId) {
+    public async Task<byte[]?> LoadCachedDocumentAsync(Guid docId, string snapshotId) {
         var db = RedisSessionManager.GetDatabase();
 
-        byte[]? content = await db.StringGetAsync($"doc:{docId}:content");
+        byte[]? content = await db.StringGetAsync($"doc:{docId}-{snapshotId}:content");
         return content;
     }
 
-    public async Task CacheDocumentAsync(Guid docId, byte[] content) {
+    public async Task CacheDocumentAsync(Guid docId, string snapshotId, byte[] content) {
         IDatabase database = RedisSessionManager.GetDatabase();
 
-        await database.StringSetAsync($"doc:{docId}:content", content);
+        await database.StringSetAsync($"doc:{docId}-{snapshotId}:content", content);
     }
 
     /// <summary>
