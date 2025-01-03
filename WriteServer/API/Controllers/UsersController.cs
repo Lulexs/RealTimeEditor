@@ -20,7 +20,6 @@ public class UsersController : ControllerBase {
     [HttpPost("login")]
     public async Task<ActionResult<UserDto>> Login([FromBody] LoginDto dto) {
         try {
-            _logger.LogInformation("Hashed sword: {}", CustomHasher.HashPassword(dto.Password, "VeljaNeZnaStaRadi"));
             _logger.LogInformation("User {} attempting to log in", dto.Username);
 
             if (dto == null || string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.Password) || string.IsNullOrWhiteSpace(dto.Region)) {
@@ -48,8 +47,36 @@ public class UsersController : ControllerBase {
 
     [HttpPost("register")]
     public async Task<ActionResult> Register([FromBody] RegisterDto regDto) {
-        await Task.Run(() => { });
-        Console.WriteLine($"Registering user: {regDto.Username}/{regDto.Password}");
-        return Ok();
+        try{
+            _logger.LogInformation("User {} attempting to register", regDto.Username);
+
+            if (regDto == null ||
+                string.IsNullOrWhiteSpace(regDto.Username) ||
+                string.IsNullOrWhiteSpace(regDto.Password) ||
+                string.IsNullOrWhiteSpace(regDto.Region)  ||
+                string.IsNullOrWhiteSpace(regDto.Avatar) ||
+                string.IsNullOrWhiteSpace(regDto.Email)) {
+                throw new InvalidRegisterDataException("Invalid registration data provided, all fields are required for registration");         
+                }
+
+            await _userLogic.RegisterUserAsync(regDto);
+
+            _logger.LogInformation("User {} successfully registered", regDto.Username);
+
+            return Ok("User successfully registered");
+
+        }
+        catch(UserAlreadyExistsException e){
+            _logger.LogInformation("User {} failed to register because account already exists", regDto.Username);
+            return Conflict(e.Message);
+        }
+        catch(InvalidRegisterDataException e){
+            _logger.LogInformation("User {} failed to register because invalid data provided", regDto.Username);
+            return BadRequest(e.Message);
+        }
+        catch(Exception ex){
+            _logger.LogError(ex, "Unexpected error while registering user");
+            return StatusCode(500, "Unexpected error while registering user");
+        }
     }
 }

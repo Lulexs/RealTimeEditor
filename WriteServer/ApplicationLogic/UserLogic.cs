@@ -29,5 +29,23 @@ public class UserLogic {
             Avatar = user.Avatar!
         };
     }
+    public async Task RegisterUserAsync(RegisterDto regDto) {
+        if (await _userRepoCass.GetUserByUsernameAsync(regDto.Username) != null) {
+            throw new UserAlreadyExistsException("User already exists");
+        }
+
+        // Password is hashed in message in register channel
+        var hashedPassword = CustomHasher.HashPassword(regDto.Password, _salt);
+        var user = new User() {
+            Username = regDto.Username,
+            HashedPassword = hashedPassword,
+            Region = regDto.Region,
+            Avatar = regDto.Avatar
+        };
+
+        await _userRepoRed.SaveUser(user);
+        _logger.LogInformation("User {Username} queued for registration in Redis pub-sub.", regDto.Username);
+
+    }
 
 }

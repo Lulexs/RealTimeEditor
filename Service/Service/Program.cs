@@ -21,6 +21,13 @@ public class Program {
                 await updateLogic.SaveUpdate(message);
             });
 
+        await subscriber.SubscribeAsync(new RedisChannel("register", RedisChannel.PatternMode.Literal),
+            async (redisChannel, message) => {
+                var userLogic = new UserLogic(new Persistence.UserRepository.UserRepositoryCassandra(),
+                                              new Persistence.UserRepository.UserRepositoryRedis(),
+                                              loggerFactory.CreateLogger<UserLogic>());
+                await userLogic.SaveUser(message);
+            });
 
         Console.WriteLine("Press Ctrl+C to exit...");
 
