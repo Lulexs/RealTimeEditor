@@ -1,27 +1,23 @@
 using Models;
 using System.Text.Json;
-using Models;
 using StackExchange.Redis;
 
 namespace Persistence.UserRepository;
 
 public class UserRepositoryRedis {
 
-    /// <summary>
-    /// Writes user info to redis pub-sub 
-    /// </summary>
-    /// <param name="user"></param>
     public async Task SaveUser(User user) {
         var subscriber = RedisSessionManager.GetSubscriber();
 
         string channelName = "register";
 
         var message = new {
-            UserId = user.UserId,
-            Username = user.Username,
-            HashedPassword = user.HashedPassword,
-            Region = user.Region,
-            Avatar = user.Avatar
+            user.UserId,
+            user.Username,
+            Password = user.HashedPassword,
+            user.Region,
+            user.Avatar,
+            user.Email
         };
 
         string serializedMessage = JsonSerializer.Serialize(message);

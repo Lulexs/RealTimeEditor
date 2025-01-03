@@ -47,34 +47,24 @@ public class UsersController : ControllerBase {
 
     [HttpPost("register")]
     public async Task<ActionResult> Register([FromBody] RegisterDto regDto) {
-        try{
+        try {
             _logger.LogInformation("User {} attempting to register", regDto.Username);
-
-            if (regDto == null ||
-                string.IsNullOrWhiteSpace(regDto.Username) ||
-                string.IsNullOrWhiteSpace(regDto.Password) ||
-                string.IsNullOrWhiteSpace(regDto.Region)  ||
-                string.IsNullOrWhiteSpace(regDto.Avatar) ||
-                string.IsNullOrWhiteSpace(regDto.Email)) {
-                throw new InvalidRegisterDataException("Invalid registration data provided, all fields are required for registration");         
-                }
 
             await _userLogic.RegisterUserAsync(regDto);
 
             _logger.LogInformation("User {} successfully registered", regDto.Username);
-
             return Ok("User successfully registered");
 
         }
-        catch(UserAlreadyExistsException e){
+        catch (UserAlreadyExistsException e) {
             _logger.LogInformation("User {} failed to register because account already exists", regDto.Username);
             return Conflict(e.Message);
         }
-        catch(InvalidRegisterDataException e){
+        catch (InvalidRegisterDataException e) {
             _logger.LogInformation("User {} failed to register because invalid data provided", regDto.Username);
             return BadRequest(e.Message);
         }
-        catch(Exception ex){
+        catch (Exception ex) {
             _logger.LogError(ex, "Unexpected error while registering user");
             return StatusCode(500, "Unexpected error while registering user");
         }
