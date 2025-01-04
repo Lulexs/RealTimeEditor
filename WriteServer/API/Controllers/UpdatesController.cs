@@ -1,7 +1,10 @@
 using System.Collections.Concurrent;
 using System.Net.WebSockets;
+using System.Text.Json;
 using ApplicationLogic;
 using ApplicationLogic.Exceptions;
+using Persistence;
+using StackExchange.Redis;
 using YDotNet.Protocol;
 using YDotNet.Server.WebSockets;
 
@@ -99,11 +102,30 @@ public class UpdatesController : ControllerBase {
         await RecieveMessageAsync(conn, sharedDoc);
     }
 
+    class RealTimeUpdate {
+        public required string Update { get; set; }
+    }
+
     private async Task RecieveMessageAsync(WebSocket conn, SharedDoc doc) {
         var encoder = new WebSocketEncoder(conn);
         var decoder = new WebSocketDecoder(conn);
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
         var clientPort = HttpContext.Connection.RemotePort.ToString();
+
+
+
+        var subscriber = RedisSessionManager.GetSubscriber();
+        await subscriber.SubscribeAsync(new RedisChannel($"realtimeupdate-{doc.DocumentId}", RedisChannel.PatternMode.Literal),
+            async (redisChannel, message) => {
+                var deserialized = JsonSerializer.Deserialize<RealTimeUpdate>(message!);
+                byte[] update_bytes = Convert.FromBase64String(deserialized!.Update);
+                foreach (var sock in doc.Conns) {
+                    if (sock != conn) {
+                        var foreignEncoder = new WebSocketEncoder(sock);
+                        await foreignEncoder.WriteAsync(new SyncUpdateMessage(update_bytes), CancellationToken.None);
+                    }
+                }
+            });
 
         while (true) {
             try {

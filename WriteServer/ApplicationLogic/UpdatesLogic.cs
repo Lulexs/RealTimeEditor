@@ -94,6 +94,16 @@ public class UpdatesLogic {
             _logger.LogError("Update to {}:{} could not be written to message queue due to {}", workspaceId, docId, ec.Message);
             throw new FailedToQueueUpdateException();
         }
+
+        /* EXPERIMENTAL */
+        try {
+            await _docRepoRed.PublishForOtherServers(docId, updateMsg.Update);
+            _logger.Log(LogLevel.None, "Publishing to {}:{} successfully written to message queue", workspaceId, docId);
+        }
+        catch (Exception ec) {
+            _logger.LogError("Publishing to {}:{} could not be written to message queue due to {}", workspaceId, docId, ec.Message);
+            throw new FailedToQueueUpdateException();
+        }
     }
 
 }

@@ -47,6 +47,19 @@ public class DocumentRepositoryRedis {
         await subscriber.PublishAsync(new RedisChannel(channelName, RedisChannel.PatternMode.Literal), serializedMessage);
     }
 
+    /* EXPERIMENTAL */
+    public async Task PublishForOtherServers(Guid documentId, byte[] update) {
+        var subscriber = RedisSessionManager.GetSubscriber();
+
+        string channelName = $"realtimeupdate-{documentId}";
+        var message = new {
+            Update = Convert.ToBase64String(update)
+        };
+        var serializedMessage = JsonSerializer.Serialize(message);
+
+        await subscriber.PublishAsync(new RedisChannel(channelName, RedisChannel.PatternMode.Literal), serializedMessage);
+    }
+
     /// <summary>
     /// Writes merged update to Redis pubsub as new snapshot
     /// </summary>
