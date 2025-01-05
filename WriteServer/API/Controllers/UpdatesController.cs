@@ -112,20 +112,10 @@ public class UpdatesController : ControllerBase {
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
         var clientPort = HttpContext.Connection.RemotePort.ToString();
 
-
-
-        var subscriber = RedisSessionManager.GetSubscriber();
-        await subscriber.SubscribeAsync(new RedisChannel($"realtimeupdate-{doc.DocumentId}", RedisChannel.PatternMode.Literal),
-            async (redisChannel, message) => {
-                var deserialized = JsonSerializer.Deserialize<RealTimeUpdate>(message!);
-                byte[] update_bytes = Convert.FromBase64String(deserialized!.Update);
-                foreach (var sock in doc.Conns) {
-                    if (sock != conn) {
-                        var foreignEncoder = new WebSocketEncoder(sock);
-                        await foreignEncoder.WriteAsync(new SyncUpdateMessage(update_bytes), CancellationToken.None);
-                    }
-                }
-            });
+        await _updatesLogic.TrackChanges(doc.DocumentId, async (update) => {
+            var foreignEncoder = new WebSocketEncoder(conn);
+            await foreignEncoder.WriteAsync(new SyncUpdateMessage(update), CancellationToken.None);
+        });
 
         while (true) {
             try {

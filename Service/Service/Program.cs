@@ -13,7 +13,7 @@ public class Program {
 
         ISubscriber subscriber = RedisSessionManager.GetSubscriber();
 
-        await subscriber.SubscribeAsync(new RedisChannel("updates", RedisChannel.PatternMode.Literal),
+        await subscriber.SubscribeAsync(new RedisChannel("realtimeupdate-*", RedisChannel.PatternMode.Pattern),
             async (redisChannel, message) => {
                 var updateLogic = new UpdateLogic(new Persistence.DocumentRepository.DocumentRepositoryCassandra(),
                                                   new Persistence.DocumentRepository.DocumentRepositoryRedis(),

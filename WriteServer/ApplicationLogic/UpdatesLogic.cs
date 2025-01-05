@@ -1,7 +1,10 @@
 using System.Linq;
+using System.Text.Json;
+using ApplicationLogic.Dtos;
 using ApplicationLogic.Exceptions;
 using Microsoft.Extensions.Logging;
 using Persistence.DocumentRepository;
+using StackExchange.Redis;
 using YDotNet.Document;
 using YDotNet.Document.Transactions;
 using YDotNet.Protocol;
@@ -18,6 +21,17 @@ public class UpdatesLogic {
         _docRepoCass = docRepoCass;
         _docRepoRed = docRepoRed;
         _logger = logger;
+    }
+
+    public async Task TrackChanges(Guid docId, Func<byte[], Task> func) {
+        await _docRepoRed.SubscribeToUpdatesChannels(docId, async (val) => {
+            var deserializedMessage = JsonSerializer.Deserialize<UpdateDto>(val!);
+            if (deserializedMessage == null)
+                return;
+
+            byte[] update_bytes = Convert.FromBase64String(deserializedMessage.Update);
+            await func(update_bytes);
+        });
     }
 
     public async Task<bool> VerifyExistsAsync(Guid workspaceId, Guid docId) {
@@ -44,10 +58,22 @@ public class UpdatesLogic {
 
     public async Task<byte[]> GetDocumentBytes(Guid docId, string snapshotId, byte[] stateVector) {
         try {
-            byte[]? docContent = await _docRepoRed.LoadCachedDocumentAsync(docId, snapshotId);
-            if (docContent != null) {
+            RedisValue[] docContent = await _docRepoRed.LoadCachedDocumentAsync(docId, snapshotId);
+            if (docContent.Length != 0) {
                 _logger.LogInformation("Successfully acquired document bytes for document {}/{} from Redis", docId, snapshotId);
-                return docContent;
+
+                Doc doc = new();
+                foreach (var update in docContent) {
+                    Transaction writeTransaction = doc.WriteTransaction();
+                    writeTransaction.ApplyV1(update!);
+                    writeTransaction.Commit();
+                }
+
+                Transaction readTransaction = doc.ReadTransaction();
+                var mergedUpdates = readTransaction.StateDiffV1(stateVector);
+                readTransaction.Commit();
+
+                return mergedUpdates;
             }
         }
         catch (Exception ec) {
@@ -92,16 +118,6 @@ public class UpdatesLogic {
         }
         catch (Exception ec) {
             _logger.LogError("Update to {}:{} could not be written to message queue due to {}", workspaceId, docId, ec.Message);
-            throw new FailedToQueueUpdateException();
-        }
-
-        /* EXPERIMENTAL */
-        try {
-            await _docRepoRed.PublishForOtherServers(docId, updateMsg.Update);
-            _logger.Log(LogLevel.None, "Publishing to {}:{} successfully written to message queue", workspaceId, docId);
-        }
-        catch (Exception ec) {
-            _logger.LogError("Publishing to {}:{} could not be written to message queue due to {}", workspaceId, docId, ec.Message);
             throw new FailedToQueueUpdateException();
         }
     }

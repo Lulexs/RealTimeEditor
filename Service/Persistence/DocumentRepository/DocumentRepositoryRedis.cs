@@ -8,7 +8,7 @@ public class DocumentRepositoryRedis {
     public async Task UpdateCacheForDocument(Guid documentId, byte[] newContent) {
         var db = RedisSessionManager.GetDatabase();
 
-        await db.StringSetAsync($"doc:{documentId}-snapshot1:content", newContent);
+        await db.SetAddAsync($"doc:{documentId}-snapshot1:content", newContent);
     }
 
     public async Task<byte[]?> ReadDocumentContent(Guid documentId) {

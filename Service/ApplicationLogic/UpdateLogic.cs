@@ -20,21 +20,20 @@ public class UpdateLogic {
     }
 
     private async Task UpdateCacheForDocument(Guid documentId, byte[] newContent) {
-        byte[]? oldContent = await _docRepoRed.ReadDocumentContent(documentId);
-        if (oldContent == null)
-            return;
+        // byte[]? oldContent = await _docRepoRed.ReadDocumentContent(documentId);
 
-        Doc doc = new();
-        Transaction writeTransaction = doc.WriteTransaction();
-        writeTransaction.ApplyV1(oldContent);
-        writeTransaction.ApplyV1(newContent);
-        writeTransaction.Commit();
+        // Doc doc = new();
+        // Transaction writeTransaction = doc.WriteTransaction();
+        // if (oldContent != null)
+        //     writeTransaction.ApplyV1(oldContent);
+        // writeTransaction.ApplyV1(newContent);
+        // writeTransaction.Commit();
 
-        Transaction readTransaction = doc.ReadTransaction();
-        var updatedContent = readTransaction.StateDiffV1([0]);
-        readTransaction.Commit();
+        // Transaction readTransaction = doc.ReadTransaction();
+        // var updatedContent = readTransaction.StateDiffV1([0]);
+        // readTransaction.Commit();
 
-        await _docRepoRed.UpdateCacheForDocument(documentId, updatedContent);
+        await _docRepoRed.UpdateCacheForDocument(documentId, newContent);
     }
 
     public async Task SaveUpdate(string? message) {

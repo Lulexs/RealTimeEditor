@@ -13,17 +13,28 @@ public class DocumentRepositoryRedis {
         return exists;
     }
 
-    public async Task<byte[]?> LoadCachedDocumentAsync(Guid docId, string snapshotId) {
+    public async Task<RedisValue[]> LoadCachedDocumentAsync(Guid docId, string snapshotId) {
         var db = RedisSessionManager.GetDatabase();
 
-        byte[]? content = await db.StringGetAsync($"doc:{docId}-{snapshotId}:content");
+        RedisValue[] content = await db.SetMembersAsync($"doc:{docId}-{snapshotId}:content");
+
         return content;
     }
 
     public async Task CacheDocumentAsync(Guid docId, string snapshotId, byte[] content) {
         IDatabase database = RedisSessionManager.GetDatabase();
 
-        await database.StringSetAsync($"doc:{docId}-{snapshotId}:content", content);
+        await database.SetAddAsync($"doc:{docId}-{snapshotId}:content", content);
+    }
+
+    public async Task SubscribeToUpdatesChannels(Guid docId, Func<RedisValue, Task> func) {
+        var subscriber = RedisSessionManager.GetSubscriber();
+        await subscriber.SubscribeAsync(new RedisChannel($"realtimeupdate-*", RedisChannel.PatternMode.Literal),
+            async (redisChannel, message) => {
+                if (redisChannel.ToString() != $"realtimeupdate-{docId}") {
+                    await func(message);
+                }
+            });
     }
 
     /// <summary>
@@ -37,27 +48,14 @@ public class DocumentRepositoryRedis {
     public async Task SaveUpdateAsync(Guid documentId, byte[] update) {
         var subscriber = RedisSessionManager.GetSubscriber();
 
-        string channelName = "updates";
+        string channelName = "realtimeupdate-*";
         var message = new {
             DocumentId = documentId,
             Update = Convert.ToBase64String(update)
         };
         string serializedMessage = JsonSerializer.Serialize(message);
 
-        await subscriber.PublishAsync(new RedisChannel(channelName, RedisChannel.PatternMode.Literal), serializedMessage);
-    }
-
-    /* EXPERIMENTAL */
-    public async Task PublishForOtherServers(Guid documentId, byte[] update) {
-        var subscriber = RedisSessionManager.GetSubscriber();
-
-        string channelName = $"realtimeupdate-{documentId}";
-        var message = new {
-            Update = Convert.ToBase64String(update)
-        };
-        var serializedMessage = JsonSerializer.Serialize(message);
-
-        await subscriber.PublishAsync(new RedisChannel(channelName, RedisChannel.PatternMode.Literal), serializedMessage);
+        await subscriber.PublishAsync(new RedisChannel(channelName, RedisChannel.PatternMode.Pattern), serializedMessage);
     }
 
     /// <summary>
