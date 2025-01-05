@@ -27,16 +27,6 @@ public class DocumentRepositoryRedis {
         await database.SetAddAsync($"doc:{docId}-{snapshotId}:content", content);
     }
 
-    public async Task SubscribeToUpdatesChannels(Guid docId, Func<RedisValue, Task> func) {
-        var subscriber = RedisSessionManager.GetSubscriber();
-        await subscriber.SubscribeAsync(new RedisChannel($"realtimeupdate-*", RedisChannel.PatternMode.Literal),
-            async (redisChannel, message) => {
-                if (redisChannel.ToString() != $"realtimeupdate-{docId}") {
-                    await func(message);
-                }
-            });
-    }
-
     /// <summary>
     /// Write document info to Redis pubsub
     /// </summary>

@@ -1,6 +1,4 @@
-using System.Linq;
-using System.Text.Json;
-using ApplicationLogic.Dtos;
+
 using ApplicationLogic.Exceptions;
 using Microsoft.Extensions.Logging;
 using Persistence.DocumentRepository;
@@ -21,17 +19,6 @@ public class UpdatesLogic {
         _docRepoCass = docRepoCass;
         _docRepoRed = docRepoRed;
         _logger = logger;
-    }
-
-    public async Task TrackChanges(Guid docId, Func<byte[], Task> func) {
-        await _docRepoRed.SubscribeToUpdatesChannels(docId, async (val) => {
-            var deserializedMessage = JsonSerializer.Deserialize<UpdateDto>(val!);
-            if (deserializedMessage == null)
-                return;
-
-            byte[] update_bytes = Convert.FromBase64String(deserializedMessage.Update);
-            await func(update_bytes);
-        });
     }
 
     public async Task<bool> VerifyExistsAsync(Guid workspaceId, Guid docId) {

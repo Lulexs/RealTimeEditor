@@ -1,10 +1,7 @@
 using System.Collections.Concurrent;
 using System.Net.WebSockets;
-using System.Text.Json;
 using ApplicationLogic;
 using ApplicationLogic.Exceptions;
-using Persistence;
-using StackExchange.Redis;
 using YDotNet.Protocol;
 using YDotNet.Server.WebSockets;
 
@@ -102,20 +99,11 @@ public class UpdatesController : ControllerBase {
         await RecieveMessageAsync(conn, sharedDoc);
     }
 
-    class RealTimeUpdate {
-        public required string Update { get; set; }
-    }
-
     private async Task RecieveMessageAsync(WebSocket conn, SharedDoc doc) {
         var encoder = new WebSocketEncoder(conn);
         var decoder = new WebSocketDecoder(conn);
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
         var clientPort = HttpContext.Connection.RemotePort.ToString();
-
-        await _updatesLogic.TrackChanges(doc.DocumentId, async (update) => {
-            var foreignEncoder = new WebSocketEncoder(conn);
-            await foreignEncoder.WriteAsync(new SyncUpdateMessage(update), CancellationToken.None);
-        });
 
         while (true) {
             try {
