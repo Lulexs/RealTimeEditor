@@ -111,7 +111,7 @@ public class UpdatesController : ControllerBase {
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
         var clientPort = HttpContext.Connection.RemotePort.ToString();
 
-        await interWriteServerSub.SubscribeAsync(new RedisChannel("realtimeupdate-*", RedisChannel.PatternMode.Literal),
+        await interWriteServerSub.SubscribeAsync(new RedisChannel("realtimeupdate-*", RedisChannel.PatternMode.Pattern),
             async (channel, message) => {
                 if (channel.ToString() == $"realtimeupdate-{doc.DocumentId}" && !message.IsNullOrEmpty) {
                     _logger.LogInformation("Here");
