@@ -1,7 +1,12 @@
 using System.Collections.Concurrent;
 using System.Net.WebSockets;
+using System.Reflection.Metadata;
+using System.Text.Json;
 using ApplicationLogic;
+using ApplicationLogic.Dtos;
 using ApplicationLogic.Exceptions;
+using Persistence;
+using StackExchange.Redis;
 using YDotNet.Protocol;
 using YDotNet.Server.WebSockets;
 
@@ -14,6 +19,7 @@ public class UpdatesController : ControllerBase {
     private readonly UpdatesLogic _updatesLogic;
     private static readonly ConcurrentDictionary<(Guid, Guid, string), SharedDoc> docs = [];
     private readonly ILogger<UpdatesController> _logger;
+    private readonly ISubscriber interWriteServerSub = RedisSessionManager.GetSubscriber();
 
     public UpdatesController(UpdatesLogic updatesLogic, ILogger<UpdatesController> logger) {
         _updatesLogic = updatesLogic;
@@ -105,6 +111,47 @@ public class UpdatesController : ControllerBase {
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
         var clientPort = HttpContext.Connection.RemotePort.ToString();
 
+        await interWriteServerSub.SubscribeAsync(new RedisChannel("realtimeupdate-*", RedisChannel.PatternMode.Literal),
+            async (channel, message) => {
+                if (channel.ToString() == $"realtimeupdate-{doc.DocumentId}" && !message.IsNullOrEmpty) {
+                    _logger.LogInformation("Here");
+                    var deserializedMessage = JsonSerializer.Deserialize<UpdateDto>(message!);
+                    if (deserializedMessage == null)
+                        return;
+
+                    byte[] update_bytes = Convert.FromBase64String(deserializedMessage.Update);
+
+                    await encoder.WriteAsync(new SyncUpdateMessage(update_bytes), CancellationToken.None);
+                }
+            });
+
+        await interWriteServerSub.SubscribeAsync(new RedisChannel("awareness-*", RedisChannel.PatternMode.Pattern),
+            async (channel, message) => {
+                if (channel.ToString() == $"awareness-{doc.DocumentId}" && !message.IsNullOrEmpty) {
+                    byte[] msg = (byte[])message!;
+
+                    int num = BitConverter.ToInt32(msg);
+
+                    byte[] awarenessBytes = new byte[msg.Length - sizeof(int)];
+                    msg.Skip(sizeof(int)).ToArray().CopyTo(awarenessBytes, 0);
+                    AwarenessMessage? msg3 = JsonSerializer.Deserialize<AwarenessMessage>(awarenessBytes);
+                    if (msg3 == null)
+                        return;
+
+                    if (GetHashCode() == num) {
+                        foreach (var sock in doc.Conns) {
+                            if (sock != conn) {
+                                var foreignEncoder = new WebSocketEncoder(sock);
+                                await foreignEncoder.WriteAsync(msg3!, CancellationToken.None);
+                            }
+                        }
+                    }
+                    else {
+                        await encoder.WriteAsync(msg3, CancellationToken.None);
+                    }
+                }
+            });
+
         while (true) {
             try {
                 var msg = await decoder.ReadNextMessageAsync(CancellationToken.None);
@@ -125,18 +172,27 @@ public class UpdatesController : ControllerBase {
                     }
                 }
                 else if (msg is AwarenessMessage msg3) {
-                    foreach (var sock in doc.Conns) {
-                        if (sock != conn) {
-                            var foreignEncoder = new WebSocketEncoder(sock);
-                            await foreignEncoder.WriteAsync(msg3, CancellationToken.None);
-                        }
-                    }
+
+                    byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(msg3);
+                    int num = GetHashCode();
+                    byte[] msgBytes = new byte[sizeof(int) + bytes.Length];
+                    BitConverter.GetBytes(num).CopyTo(msgBytes, 0);
+                    bytes.CopyTo(msgBytes, sizeof(int));
+
+                    await interWriteServerSub.PublishAsync(new RedisChannel($"awareness-{doc.DocumentId}", RedisChannel.PatternMode.Literal), msgBytes);
+                    // foreach (var sock in doc.Conns) {
+                    //     if (sock != conn) {
+                    //         var foreignEncoder = new WebSocketEncoder(sock);
+                    //         await foreignEncoder.WriteAsync(msg3, CancellationToken.None);
+                    //     }
+                    // }
                 }
 
             }
-            catch (WebSocketException) {
+            catch (WebSocketException e) {
                 CloseConnection(doc, conn);
                 _logger.LogInformation("Closing connection from {}:{}", clientIp, clientPort);
+                _logger.LogError("{}", e.Message);
                 break;
             }
             catch (CantLoadDocumentContentException) {
@@ -150,12 +206,14 @@ public class UpdatesController : ControllerBase {
         }
     }
 
-    private static void CloseConnection(SharedDoc doc, WebSocket conn) {
+    private void CloseConnection(SharedDoc doc, WebSocket conn) {
         doc.Conns.Remove(conn);
 
         if (doc.Conns.Count == 0) {
             docs.TryRemove((doc.WorkspaceId, doc.DocumentId, doc.SnapshotId), out var _);
         }
+
+        interWriteServerSub.UnsubscribeAll();
     }
 
     private class SharedDoc {

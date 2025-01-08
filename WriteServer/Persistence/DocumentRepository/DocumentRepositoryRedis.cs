@@ -38,14 +38,14 @@ public class DocumentRepositoryRedis {
     public async Task SaveUpdateAsync(Guid documentId, byte[] update) {
         var subscriber = RedisSessionManager.GetSubscriber();
 
-        string channelName = "realtimeupdate-*";
+        string channelName = $"realtimeupdate-{documentId}";
         var message = new {
             DocumentId = documentId,
             Update = Convert.ToBase64String(update)
         };
         string serializedMessage = JsonSerializer.Serialize(message);
 
-        await subscriber.PublishAsync(new RedisChannel(channelName, RedisChannel.PatternMode.Pattern), serializedMessage);
+        await subscriber.PublishAsync(new RedisChannel(channelName, RedisChannel.PatternMode.Literal), serializedMessage);
     }
 
     /// <summary>

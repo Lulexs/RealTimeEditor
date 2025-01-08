@@ -3,8 +3,6 @@ using ApplicationLogic.Dtos;
 using Microsoft.Extensions.Logging;
 using Models;
 using Persistence.DocumentRepository;
-using YDotNet.Document;
-using YDotNet.Document.Transactions;
 
 namespace ApplicationLogic;
 
@@ -67,9 +65,29 @@ public class UpdateLogic {
             await _docRepoCass.SaveUpdateAsync(update);
             _logger.LogInformation("Update {}/{}/{} persisted to cassandra", update.DocumentId, update.SnapshotId, update.UpdateId);
         }
+        catch (ArgumentException ec) {
+            _logger.LogError("Saving document update {}/{}/{} in cassandra failed due to {}. Retrying with different key", update.DocumentId, update.SnapshotId, update.UpdateId, ec.Message);
+            await RetrySaveToCassandra(update);
+        }
         catch (Exception ec) {
             _logger.LogError("Saving document update {}/{}/{} in cassandra failed due to {}", update.DocumentId, update.SnapshotId, update.UpdateId, ec.Message);
         }
+    }
 
+    public async Task RetrySaveToCassandra(UpdatesBySnapshot update) {
+        Random rnd = new();
+        update.UpdateId += rnd.NextInt64();
+
+        try {
+            await _docRepoCass.SaveUpdateAsync(update);
+            _logger.LogInformation("Update {}/{}/{} persisted to cassandra", update.DocumentId, update.SnapshotId, update.UpdateId);
+        }
+        catch (ArgumentException ec) {
+            _logger.LogError("Saving document update {}/{}/{} in cassandra failed due to {}. Retrying with different key", update.DocumentId, update.SnapshotId, update.UpdateId, ec.Message);
+            await RetrySaveToCassandra(update);
+        }
+        catch (Exception ec) {
+            _logger.LogError("Saving document update {}/{}/{} in cassandra failed due to {}", update.DocumentId, update.SnapshotId, update.UpdateId, ec.Message);
+        }
     }
 }
