@@ -1,12 +1,18 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <!-- <PackageReference Include="YDotNet.Native.Win32" Version="0.4.1" /> -->
     <ProjectReference Include="..\Persistence\Persistence.csproj" />
     <ProjectReference Include="..\Models\Models.csproj" />
     <PackageReference Include="YDotNet" Version="0.4.1" />
-    <PackageReference Include="YDotNet.Native.Linux" Version="0.4.1" />
     <PackageReference Include="YDotNet.Server.WebSockets" Version="0.4.1" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+      <PackageReference Include="YDotNet.Native.Win32" Version="0.4.1" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
+      <PackageReference Include="YDotNet.Native.Linux" Version="0.4.1" />
   </ItemGroup>
 
   <PropertyGroup>
