@@ -186,8 +186,8 @@ const WorkspaceItem = observer(({ workspace }: WorkspaceItemProps) => {
       <ChangeWorkspaceNameDialog
         opened={changeWorkspaceNameDialogOpened}
         onClose={closeChangeWorkspaceNameDialog}
-        onRename={(newName: string) => {
-          workspaceStore.changeName(
+        onRename={async (newName: string) => {
+          return await workspaceStore.changeName(
             workspace.workspaceId,
             workspace.ownerUsername,
             userStore.user?.username ?? "InvalidUsername",

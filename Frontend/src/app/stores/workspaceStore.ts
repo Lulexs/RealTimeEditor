@@ -77,8 +77,10 @@ export default class WorkspaceStore {
         this.workspaces!.delete(workspaceId);
         this.workspaces!.set(workspaceId, { ...old!, workspaceName: newName });
       });
+      return true;
     } catch (error) {
       console.error(error);
+      return false;
     }
   };
 
@@ -115,8 +117,10 @@ export default class WorkspaceStore {
           (x) => x.username != username
         );
       });
+      return true;
     } catch (error) {
       console.error(error);
+      return false;
     }
   };
 
@@ -135,8 +139,10 @@ export default class WorkspaceStore {
           };
         });
       });
+      return true;
     } catch (error) {
       console.error(error);
+      return false;
     }
   };
 

@@ -10,12 +10,11 @@ public class DocumentsController : ControllerBase {
     private readonly RedLockManager _redLockManager;
     private readonly DocumentRepositoryCassandra _documentRepository;
 
-    public DocumentsController(RedLockManager redLockManager, DocumentRepositoryCassandra documentRepository)
-    {
+    public DocumentsController(RedLockManager redLockManager, DocumentRepositoryCassandra documentRepository) {
         _redLockManager = redLockManager;
         _documentRepository = documentRepository;
     }
-    
+
     [HttpGet("{workspaceId}")]
     public async Task<ActionResult<List<Document>>> GetDocumentsInWorkspace(Guid workspaceId) {
         Console.WriteLine($"Getting documents for workspace ${workspaceId}");
@@ -64,36 +63,31 @@ public class DocumentsController : ControllerBase {
         var resourceKey = $"{dto.WorkspaceId}-{dto.DocumentId}-changeDocumentName";
         using (var redLock = await _redLockManager.GetFactory().CreateLockAsync(
             resourceKey,
-            TimeSpan.FromSeconds(10),
-            TimeSpan.FromSeconds(5),
             TimeSpan.FromSeconds(2))) {
-                if(!redLock.IsAcquired) {
-                    return StatusCode(409, "Another user is changing the document name");
-                }
-                try{
-                    var documentExists = await _documentRepository.VerifyExistsAsync(dto.WorkspaceId,dto.DocumentId);
-                    if (!documentExists)
-                    {
-                        return NotFound("Document does not exist.");
-                    }
-
-                    var result = await _documentRepository.UpdateDocumentNameAsync(dto.WorkspaceId, dto.DocumentId, dto.NewName);
-                    if (result)
-                    {
-                        Console.WriteLine($"Changed document {dto.WorkspaceId}/{dto.DocumentId} name to {dto.WorkspaceId}/{dto.NewName}");
-                        return Ok("Document name changed successfully.");
-                    }
-                    else
-                    {
-                        return StatusCode(500, "An error occurred while changing the document name.");
-                    }
-                
-                }
-                catch (Exception e) {
-                    Console.WriteLine($"Error during ChangeDocumentName: {e.Message}");
-                    return StatusCode(500, "An error occurred while changing the document name." + e.Message);
-                }
+            if (!redLock.IsAcquired) {
+                return StatusCode(409, "Another user is changing the document name");
             }
+            try {
+                var documentExists = await _documentRepository.VerifyExistsAsync(dto.WorkspaceId, dto.DocumentId);
+                if (!documentExists) {
+                    return NotFound("Document does not exist.");
+                }
+
+                var result = await _documentRepository.UpdateDocumentNameAsync(dto.WorkspaceId, dto.DocumentId, dto.NewName);
+                if (result) {
+                    Console.WriteLine($"Changed document {dto.WorkspaceId}/{dto.DocumentId} name to {dto.WorkspaceId}/{dto.NewName}");
+                    return Ok("Document name changed successfully.");
+                }
+                else {
+                    return StatusCode(500, "An error occurred while changing the document name.");
+                }
+
+            }
+            catch (Exception e) {
+                Console.WriteLine($"Error during ChangeDocumentName: {e.Message}");
+                return StatusCode(500, "An error occurred while changing the document name." + e.Message);
+            }
+        }
     }
 
     [HttpPost("snapshots/{documentId}")]

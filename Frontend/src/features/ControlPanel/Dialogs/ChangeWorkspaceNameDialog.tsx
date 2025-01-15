@@ -4,7 +4,7 @@ import { useState } from "react";
 interface RenameDialogProps {
   opened: boolean;
   onClose: () => void;
-  onRename: (newName: string) => void;
+  onRename: (newName: string) => Promise<boolean>;
   currentName?: string;
 }
 
@@ -17,15 +17,17 @@ export default function ChangeWorkspaceNameDialog({
   const [newName, setNewName] = useState(currentName);
   const [error, setError] = useState("");
 
-  const handleRename = () => {
+  const handleRename = async () => {
     if (!newName.trim()) {
       setError("Workspace name cannot be empty");
       return;
     }
-    onRename(newName.trim());
-    setNewName("");
-    setError("");
-    onClose();
+    const res = await onRename(newName.trim());
+    if (res) {
+      setNewName("");
+      setError("");
+      onClose();
+    }
   };
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {

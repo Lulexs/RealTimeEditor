@@ -98,8 +98,10 @@ export default class DocumentStore {
           }
         }
       });
+      return true;
     } catch (error) {
       console.error(error);
+      return false;
     }
   };
 

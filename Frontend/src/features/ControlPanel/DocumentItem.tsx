@@ -87,8 +87,8 @@ const DocumentItem = observer(
         <ChangeDocumentNameDialog
           opened={changeDocumentNameDialogOpened}
           onClose={closeChangeDocumentNameDialog}
-          onRename={(newName: string) => {
-            documentStore.changeDocumentName(
+          onRename={async (newName: string) => {
+            return await documentStore.changeDocumentName(
               document.workspaceId,
               document.documentId,
               newName
