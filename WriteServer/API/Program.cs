@@ -2,6 +2,7 @@ using ApplicationLogic;
 using Persistence.DocumentRepository;
 using Persistence.UserRepository;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging.ClearProviders();
@@ -12,6 +13,7 @@ builder.Logging.AddEventSourceLogger();
 var configuration = builder.Configuration;
 builder.Services.Configure<AppSettings>(configuration);
 
+builder.Services.AddSingleton<RedLockManager>();
 builder.Services.AddSingleton(configuration);
 builder.Services.AddScoped<DocumentRepositoryCassandra>();
 builder.Services.AddScoped<DocumentRepositoryRedis>();
@@ -36,6 +38,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+//var redLockManager = app.Services.GetRequiredService<RedLockManager>(); PROVERA DA LI INICIJALIZUJE LEPO REDLOCK - RADI
+
 
 if (app.Environment.IsDevelopment()) {
     //app.UseSwagger();

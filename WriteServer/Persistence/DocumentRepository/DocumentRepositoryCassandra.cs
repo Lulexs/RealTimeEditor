@@ -31,4 +31,17 @@ public class DocumentRepositoryCassandra {
         return payloads;
     }
 
+    public async Task<bool> UpdateDocumentNameAsync(Guid workspaceId, Guid documentId, string newName)
+    {
+        var session = CassandraSessionManager.GetSession();
+
+        var statement = await session.PrepareAsync("UPDATE documents SET documentname = ? WHERE workspaceid = ? AND documentid = ?");
+        var boundStatement = statement.Bind(newName, workspaceId, documentId);
+
+        var result = await session.ExecuteAsync(boundStatement);
+        if (result.Any())
+            return true;
+        return false;
+    }
+
 }
