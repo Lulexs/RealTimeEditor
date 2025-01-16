@@ -58,17 +58,23 @@ public class DocumentsController : ControllerBase {
         return Ok();
     }
 
-    [HttpPut("")]
-    public async Task<ActionResult> ChangeDocumentName([FromBody] ChangeDocumentNameDto dto) {
+
+    [HttpPost("lock-change-document-name")]
+    public async Task<ActionResult> AcquireLockForChangeDocumentName([FromBody] ChangeDocumentNameDto dto) {
         var resourceKey = $"{dto.WorkspaceId}-{dto.DocumentId}-changeDocumentName";
-        using (var redLock = await _redLockManager.GetFactory().CreateLockAsync(
+        await using (var redLock = await _redLockManager.GetFactory().CreateLockAsync(
             resourceKey,
-            TimeSpan.FromSeconds(2))) {
+            TimeSpan.FromSeconds(10))) {
             if (!redLock.IsAcquired) {
                 return StatusCode(409, "Another user is changing the document name");
             }
+            return Ok();
+        }
+    }
+
+    [HttpPut("")]
+    public async Task<ActionResult> ChangeDocumentName([FromBody] ChangeDocumentNameDto dto) {
             try {
-                Console.WriteLine($"Lock succesfully acquired changing document name for {dto.WorkspaceId}/{dto.DocumentId} to {dto.NewName}");
                 var documentExists = await _documentRepository.VerifyExistsAsync(dto.WorkspaceId, dto.DocumentId);
                 if (!documentExists) {
                     return NotFound("Document does not exist.");
@@ -85,8 +91,8 @@ public class DocumentsController : ControllerBase {
                 Console.WriteLine($"Error during ChangeDocumentName: {e.Message}");
                 return StatusCode(500, "An error occurred while changing the document name." + e.Message);
             }
-        }
     }
+    
 
     [HttpPost("snapshots/{documentId}")]
     public async Task<ActionResult<Snapshot>> CreateSnapshot(Guid documentId) {

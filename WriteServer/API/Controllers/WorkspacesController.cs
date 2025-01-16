@@ -1,11 +1,19 @@
 using ApplicationLogic.Dtos;
 using Models;
-
+using Persistence.WorkspaceRepository;
 namespace API.Controllers;
 
 [ApiController]
 [Route("[controller]")]
 public class WorkspacesController : ControllerBase {
+
+    private readonly RedLockManager _redLockManager;
+    private readonly WorkspaceRepositoryCassandra _workspaceRepository;
+
+    public WorkspacesController(RedLockManager redLockManager, WorkspaceRepositoryCassandra workspaceRepository) {
+        _redLockManager = redLockManager;
+        _workspaceRepository = workspaceRepository;
+    }
 
     [HttpPost("")]
     public async Task<ActionResult<Workspace>> CreateWorkspace([FromBody] WorkspaceDto dto) {
@@ -66,9 +74,62 @@ public class WorkspacesController : ControllerBase {
         return Ok();
     }
 
+
+    [HttpPost("lock-change-workspace-name")]
+    public async Task<ActionResult> AcquireLockForChangeWorkspaceName([FromBody] ChangeWorkspaceNameDto dto) {
+        var resourceKey = $"{dto.WorkspaceId}-changeWorkspaceName";
+        await using (var redLock = await _redLockManager.GetFactory().CreateLockAsync(
+            resourceKey,
+            TimeSpan.FromSeconds(10))) {
+            if (!redLock.IsAcquired) {
+                return StatusCode(409, "Another user is changing the workspace name");
+            }
+            return Ok();
+        }
+    }
+
     [HttpPut("")]
     public async Task<ActionResult> ChangeName([FromBody] ChangeWorkspaceNameDto dto) {
-        Console.WriteLine($"{dto.UserUsername} changing {dto.OwnerUsername}'s workspace {dto.WorkspaceId} name to {dto.NewName} ");
+        try{
+            var workspaceExists = await _workspaceRepository.VerifyExistsAsync(dto.WorkspaceId);
+            if (!workspaceExists) {
+                return NotFound("Workspace does not exist.");
+            }
+            await _workspaceRepository.ChangeWorkspaceName(dto.WorkspaceId, dto.NewName);
+            
+            Console.WriteLine($"Changed workspace {dto.WorkspaceId} name to {dto.NewName}");
+
+            return Ok("Workspace name changed successfully.");
+        }
+        catch(Exception e){
+            Console.WriteLine($"Error during WorkspaceChangeName: {e.Message}");
+            return StatusCode(500, e.Message);
+        }
+    }
+
+    [HttpPost("lock-kick-and-change-perm-lvl-user")]
+    public async Task<ActionResult> AcquireLockForKickChangePermLevelUser(Guid workspaceId, string username) {
+        var resourceKey = $"{workspaceId}-{username}-kickChangePermLevel";
+        await using (var redLock = await _redLockManager.GetFactory().CreateLockAsync(
+            resourceKey,
+            TimeSpan.FromSeconds(10))) {
+            if (!redLock.IsAcquired) {
+                return StatusCode(409, "Another admin is doing adminitrative lock over this user");
+            }
+            return Ok();
+        }
+    }
+
+    [HttpDelete("users/{workspaceId}/{username}/{performer}")]
+    public async Task<ActionResult> KickFromWorkspace(Guid workspaceId, string username, string performer) {
+        Console.WriteLine($"Kicking {username} from {workspaceId} by {performer}");
+        await Task.Delay(10);
+        return Ok();
+    }
+
+    [HttpPut("users/{username}/{newPermLevel}/{performer}")]
+    public async Task<ActionResult> ChangeUserPermLevel(string username, PermissionLevel newPermLevel, string performer) {
+        Console.WriteLine($"Changing {username} permission to {newPermLevel} by {performer}");
         await Task.Delay(10);
         return Ok();
     }
@@ -87,19 +148,6 @@ public class WorkspacesController : ControllerBase {
         });
     }
 
-    [HttpDelete("users/{workspaceId}/{username}/{performer}")]
-    public async Task<ActionResult> KickFromWorkspace(Guid workspaceId, string username, string performer) {
-        Console.WriteLine($"Kicking {username} from {workspaceId} by {performer}");
-        await Task.Delay(10);
-        return Ok();
-    }
-
-    [HttpPut("users/{username}/{newPermLevel}/{performer}")]
-    public async Task<ActionResult> ChangeUserPermLevel(string username, PermissionLevel newPermLevel, string performer) {
-        Console.WriteLine($"Changing {username} permission to {newPermLevel} by {performer}");
-        await Task.Delay(10);
-        return Ok();
-    }
 
     [HttpGet("users/{workspaceId}")]
     public async Task<ActionResult<List<UserInWorkspaceDto>>> GetUsersInWorkspace(Guid workspaceId) {
