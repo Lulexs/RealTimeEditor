@@ -31,15 +31,14 @@ public class DocumentRepositoryCassandra {
         return payloads;
     }
 
-    public async Task UpdateDocumentNameAsync(Guid workspaceId, Guid documentId, string newName)
-    {
+    public async Task UpdateDocumentNameAsync(Guid workspaceId, Guid documentId, string newName) {
         var session = CassandraSessionManager.GetSession();
 
         var statement = await session.PrepareAsync("UPDATE documents SET documentname = ? WHERE workspaceid = ? AND documentid = ?");
         var boundStatement = statement.Bind(newName, workspaceId, documentId);
 
         await session.ExecuteAsync(boundStatement);
-        
+
     }
 
 }

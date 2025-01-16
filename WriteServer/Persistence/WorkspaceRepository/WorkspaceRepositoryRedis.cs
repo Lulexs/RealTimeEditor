@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Models;
+using StackExchange.Redis;
 
 namespace Persistence.WorkspaceRepository;
 
@@ -21,12 +23,16 @@ public class WorkspaceRepositoryRedis {
 
     }
 
-    /// <summary>
-    /// Write new workspace name to redis pub sub
-    /// </summary>
-    /// <param name="workspaceID"></param>
-    /// <param name="newName"></param>
-    public void ChangeName(Guid workspaceID, string newName) {
+    public async Task ChangeName(Guid workspaceID, string newName) {
+        var subscriber = RedisSessionManager.GetSubscriber();
 
+        string channelName = $"changeworkspacename";
+        var message = new {
+            WorkspaceId = workspaceID,
+            NewName = newName
+        };
+        string serializedMessage = JsonSerializer.Serialize(message);
+
+        await subscriber.PublishAsync(new RedisChannel(channelName, RedisChannel.PatternMode.Literal), serializedMessage);
     }
 }

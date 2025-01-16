@@ -1,18 +1,21 @@
+using ApplicationLogic;
 using ApplicationLogic.Dtos;
+using ApplicationLogic.Exceptions;
 using Models;
-using Persistence.DocumentRepository;
+
 namespace API.Controllers;
 
 [ApiController]
 [Route("[controller]")]
 public class DocumentsController : ControllerBase {
+    private readonly DocumentLogic _documentLogic;
+    private readonly LockLogic _lockLogic;
+    private readonly ILogger<DocumentsController> _logger;
 
-    private readonly RedLockManager _redLockManager;
-    private readonly DocumentRepositoryCassandra _documentRepository;
-
-    public DocumentsController(RedLockManager redLockManager, DocumentRepositoryCassandra documentRepository) {
-        _redLockManager = redLockManager;
-        _documentRepository = documentRepository;
+    public DocumentsController(DocumentLogic documentLogic, LockLogic lockLogic, ILogger<DocumentsController> logger) {
+        _documentLogic = documentLogic;
+        _logger = logger;
+        _lockLogic = lockLogic;
     }
 
     [HttpGet("{workspaceId}")]
@@ -58,41 +61,39 @@ public class DocumentsController : ControllerBase {
         return Ok();
     }
 
-
-    [HttpPost("lock-change-document-name")]
+    [HttpPost("lock")]
     public async Task<ActionResult> AcquireLockForChangeDocumentName([FromBody] ChangeDocumentNameDto dto) {
-        var resourceKey = $"{dto.WorkspaceId}-{dto.DocumentId}-changeDocumentName";
-        await using (var redLock = await _redLockManager.GetFactory().CreateLockAsync(
-            resourceKey,
-            TimeSpan.FromSeconds(10))) {
-            if (!redLock.IsAcquired) {
-                return StatusCode(409, "Another user is changing the document name");
-            }
+        try {
+            var resourceKey = $"{dto.WorkspaceId}-{dto.DocumentId}-changeDocumentName";
+            await _lockLogic.LockResource(resourceKey);
             return Ok();
+        }
+        catch (LockTakenException e) {
+            _logger.LogInformation("{}", e.Message);
+            return StatusCode(409, "Another user is changing the document name");
+        }
+        catch (Exception e) {
+            _logger.LogError("Error during acquire lock for change document name: {}", e.Message);
+            return StatusCode(500, "An error occurred while attepmting to change the document name.");
         }
     }
 
     [HttpPut("")]
     public async Task<ActionResult> ChangeDocumentName([FromBody] ChangeDocumentNameDto dto) {
-            try {
-                var documentExists = await _documentRepository.VerifyExistsAsync(dto.WorkspaceId, dto.DocumentId);
-                if (!documentExists) {
-                    return NotFound("Document does not exist.");
-                }
-
-                await _documentRepository.UpdateDocumentNameAsync(dto.WorkspaceId, dto.DocumentId, dto.NewName);
-
-                Console.WriteLine($"Changed document {dto.WorkspaceId}/{dto.DocumentId} name to {dto.WorkspaceId}/{dto.NewName}");
-                return Ok("Document name changed successfully.");
-
-
-            }
-            catch (Exception e) {
-                Console.WriteLine($"Error during ChangeDocumentName: {e.Message}");
-                return StatusCode(500, "An error occurred while changing the document name." + e.Message);
-            }
+        try {
+            await _documentLogic.ChangeDocumentName(dto);
+            return Ok();
+        }
+        catch (DocumentNotFoundException e) {
+            _logger.LogInformation("Change document name failed due to {}", e.Message);
+            return NotFound(e.Message);
+        }
+        catch (Exception e) {
+            _logger.LogError("Error during ChangeDocumentName: {}", e.Message);
+            return StatusCode(500, "An error occurred while changing the document name.");
+        }
     }
-    
+
 
     [HttpPost("snapshots/{documentId}")]
     public async Task<ActionResult<Snapshot>> CreateSnapshot(Guid documentId) {

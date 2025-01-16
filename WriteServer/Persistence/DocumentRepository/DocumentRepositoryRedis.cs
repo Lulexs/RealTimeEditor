@@ -64,13 +64,18 @@ public class DocumentRepositoryRedis {
 
     }
 
-    /// <summary>
-    /// Write document's new name to Redis pubsub
-    /// </summary>
-    /// <param name="documentId"></param>
-    /// <param name="newName"></param>
-    public void ChangeDocumentName(Guid documentId, string newName) {
+    public async Task ChangeDocumentName(Guid workspaceId, Guid documentId, string newName) {
+        var subscriber = RedisSessionManager.GetSubscriber();
 
+        string channelName = $"changedocname";
+        var message = new {
+            WorkspaceId = workspaceId,
+            DocumentId = documentId,
+            NewName = newName
+        };
+        string serializedMessage = JsonSerializer.Serialize(message);
+
+        await subscriber.PublishAsync(new RedisChannel(channelName, RedisChannel.PatternMode.Literal), serializedMessage);
     }
 
     /// <summary>

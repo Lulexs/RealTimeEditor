@@ -54,16 +54,9 @@ const Workspaces = {
     }),
   delete: (workspaceId: string, username: string) =>
     requests.del<void>(`/workspaces/${workspaceId}/${username}`),
-  changeName: (
-    workspaceId: string,
-    ownerUsername: string,
-    userUsername: string,
-    newName: string
-  ) =>
+  changeName: (workspaceId: string, newName: string) =>
     requests.put<void>(`/workspaces`, {
       WorkspaceId: workspaceId,
-      OwnerUsername: ownerUsername,
-      UserUsername: userUsername,
       NewName: newName,
     }),
   refresh: (workspaceId: string, ownerUsername: string) =>
@@ -83,6 +76,11 @@ const Workspaces = {
       `/workspaces/users/${username}/${newPermLevel}/${performer}`,
       {}
     ),
+  lock: (workspaceId: string, newName: string) =>
+    requests.post<void>(`/workspaces/lock`, {
+      WorkspaceId: workspaceId,
+      NewName: newName,
+    }),
 };
 
 const Documents = {
@@ -121,6 +119,12 @@ const Documents = {
       DocumentName: documentName,
       SnapshotName: snapshotName,
       Forker: forker,
+    }),
+  lock: (workspaceId: string, documentId: string, newName: string) =>
+    requests.post<void>(`/documents/lock`, {
+      WorkspaceId: workspaceId,
+      DocumentId: documentId,
+      NewName: newName,
     }),
 };
 

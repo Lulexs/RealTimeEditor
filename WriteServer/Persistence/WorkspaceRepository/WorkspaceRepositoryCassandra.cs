@@ -15,7 +15,7 @@ public class WorkspaceRepositoryCassandra {
     public async Task<bool> VerifyExistsAsync(Guid workspaceId) {
         var session = CassandraSessionManager.GetSession();
 
-        var statement = await session.PrepareAsync("SELECT workspacename FROM workspaces WHERE workspaceid = ?");
+        var statement = await session.PrepareAsync("SELECT workspaceid FROM users_by_workspace WHERE workspaceid = ?");
         var boundStatement = statement.Bind(workspaceId);
         var result = await session.ExecuteAsync(boundStatement);
 
@@ -23,14 +23,4 @@ public class WorkspaceRepositoryCassandra {
             return true;
         return false;
     }
-
-    public async Task ChangeWorkspaceName(Guid workspaceId, string newName) {
-        var session = CassandraSessionManager.GetSession();
-
-        var statement = await session.PrepareAsync("UPDATE workspaces SET workspacename = ? WHERE workspaceid = ?");
-        var boundStatement = statement.Bind(newName, workspaceId);
-
-        await session.ExecuteAsync(boundStatement);
-    }
-
 }

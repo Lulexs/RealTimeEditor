@@ -22,6 +22,7 @@ import ManageUsersDialog from "./Dialogs/ManageUsersDialog";
 import { observer } from "mobx-react-lite";
 import DocumentItem from "./DocumentItem";
 import CreateDocumentDialog from "./Dialogs/CreateDocumentDialog";
+import agent from "../../app/api/agent";
 
 interface WorkspaceItemProps {
   workspace: Workspace;
@@ -88,8 +89,16 @@ const WorkspaceItem = observer(({ workspace }: WorkspaceItemProps) => {
       key: "rename",
       icon: <IconPencil size={16} />,
       title: "Change Name",
-      onClick: () => {
-        toggleChangeWorkspaceNameDialog();
+      onClick: async () => {
+        try {
+          await agent.Workspaces.lock(
+            workspace.workspaceId,
+            workspace.workspaceName
+          );
+          toggleChangeWorkspaceNameDialog();
+        } catch (error) {
+          console.error(error);
+        }
       },
       requiredPermission: PermissionLevel.Admin,
     },
@@ -189,8 +198,6 @@ const WorkspaceItem = observer(({ workspace }: WorkspaceItemProps) => {
         onRename={async (newName: string) => {
           return await workspaceStore.changeName(
             workspace.workspaceId,
-            workspace.ownerUsername,
-            userStore.user?.username ?? "InvalidUsername",
             newName
           );
         }}

@@ -1,18 +1,22 @@
+using ApplicationLogic;
 using ApplicationLogic.Dtos;
+using ApplicationLogic.Exceptions;
 using Models;
-using Persistence.WorkspaceRepository;
+
 namespace API.Controllers;
 
 [ApiController]
 [Route("[controller]")]
 public class WorkspacesController : ControllerBase {
 
-    private readonly RedLockManager _redLockManager;
-    private readonly WorkspaceRepositoryCassandra _workspaceRepository;
+    private readonly WorkspaceLogic _workspaceLogic;
+    private readonly LockLogic _lockLogic;
+    private readonly ILogger<WorkspacesController> _logger;
 
-    public WorkspacesController(RedLockManager redLockManager, WorkspaceRepositoryCassandra workspaceRepository) {
-        _redLockManager = redLockManager;
-        _workspaceRepository = workspaceRepository;
+    public WorkspacesController(WorkspaceLogic workspaceLogic, LockLogic lockLogic, ILogger<WorkspacesController> logger) {
+        _lockLogic = lockLogic;
+        _workspaceLogic = workspaceLogic;
+        _logger = logger;
     }
 
     [HttpPost("")]
@@ -74,51 +78,51 @@ public class WorkspacesController : ControllerBase {
         return Ok();
     }
 
-
-    [HttpPost("lock-change-workspace-name")]
-    public async Task<ActionResult> AcquireLockForChangeWorkspaceName([FromBody] ChangeWorkspaceNameDto dto) {
-        var resourceKey = $"{dto.WorkspaceId}-changeWorkspaceName";
-        await using (var redLock = await _redLockManager.GetFactory().CreateLockAsync(
-            resourceKey,
-            TimeSpan.FromSeconds(10))) {
-            if (!redLock.IsAcquired) {
-                return StatusCode(409, "Another user is changing the workspace name");
-            }
+    [HttpPost("lock")]
+    public async Task<ActionResult> AcquireLockForChangeDocumentName([FromBody] ChangeDocumentNameDto dto) {
+        try {
+            var resourceKey = $"{dto.WorkspaceId}-changeWorkspaceName";
+            await _lockLogic.LockResource(resourceKey);
             return Ok();
+        }
+        catch (LockTakenException e) {
+            _logger.LogInformation("{}", e.Message);
+            return StatusCode(409, "Another user is changing the workspace name");
+        }
+        catch (Exception e) {
+            _logger.LogError("Error during acquire lock for change workspace name: {}", e.Message);
+            return StatusCode(500, "An error occurred while attempting to change the workspace name.");
         }
     }
 
     [HttpPut("")]
-    public async Task<ActionResult> ChangeName([FromBody] ChangeWorkspaceNameDto dto) {
-        try{
-            var workspaceExists = await _workspaceRepository.VerifyExistsAsync(dto.WorkspaceId);
-            if (!workspaceExists) {
-                return NotFound("Workspace does not exist.");
-            }
-            await _workspaceRepository.ChangeWorkspaceName(dto.WorkspaceId, dto.NewName);
-            
-            Console.WriteLine($"Changed workspace {dto.WorkspaceId} name to {dto.NewName}");
-
-            return Ok("Workspace name changed successfully.");
-        }
-        catch(Exception e){
-            Console.WriteLine($"Error during WorkspaceChangeName: {e.Message}");
-            return StatusCode(500, e.Message);
-        }
-    }
-
-    [HttpPost("lock-kick-and-change-perm-lvl-user")]
-    public async Task<ActionResult> AcquireLockForKickChangePermLevelUser(Guid workspaceId, string username) {
-        var resourceKey = $"{workspaceId}-{username}-kickChangePermLevel";
-        await using (var redLock = await _redLockManager.GetFactory().CreateLockAsync(
-            resourceKey,
-            TimeSpan.FromSeconds(10))) {
-            if (!redLock.IsAcquired) {
-                return StatusCode(409, "Another admin is doing adminitrative lock over this user");
-            }
+    public async Task<ActionResult> ChangeDocumentName([FromBody] ChangeWorkspaceNameDto dto) {
+        try {
+            await _workspaceLogic.ChangeWorkspaceName(dto);
             return Ok();
         }
+        catch (WorkspaceNotFoundException e) {
+            _logger.LogInformation("Change workspace name failed due to {}", e.Message);
+            return NotFound(e.Message);
+        }
+        catch (Exception e) {
+            _logger.LogError("Error during ChangeWorkspaceName: {}", e.Message);
+            return StatusCode(500, "An error occurred while changing the workspace name.");
+        }
     }
+
+    // [HttpPost("lock-kick-and-change-perm-lvl-user")]
+    // public async Task<ActionResult> AcquireLockForKickChangePermLevelUser(Guid workspaceId, string username) {
+    //     var resourceKey = $"{workspaceId}-{username}-kickChangePermLevel";
+    //     await using (var redLock = await _redLockManager.GetFactory().CreateLockAsync(
+    //         resourceKey,
+    //         TimeSpan.FromSeconds(10))) {
+    //         if (!redLock.IsAcquired) {
+    //             return StatusCode(409, "Another admin is doing adminitrative lock over this user");
+    //         }
+    //         return Ok();
+    //     }
+    // }
 
     [HttpDelete("users/{workspaceId}/{username}/{performer}")]
     public async Task<ActionResult> KickFromWorkspace(Guid workspaceId, string username, string performer) {

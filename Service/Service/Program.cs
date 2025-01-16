@@ -28,6 +28,19 @@ public class Program {
                                               loggerFactory.CreateLogger<UserLogic>());
                 await userLogic.SaveUser(message);
             });
+        await subscriber.SubscribeAsync(new RedisChannel("changedocname", RedisChannel.PatternMode.Literal),
+            async (redisChannel, message) => {
+                var docLogic = new DocumentLogic(new Persistence.DocumentRepository.DocumentRepositoryCassandra());
+                await docLogic.ChangeDocumentName(message);
+            }
+        );
+        await subscriber.SubscribeAsync(new RedisChannel("changeworkspacename", RedisChannel.PatternMode.Literal),
+            async (redisChannel, message) => {
+                var wsLogic = new WorkspaceLogic(new Persistence.WorkspaceRepository.WorkspaceRepositoryCassandra());
+
+                await wsLogic.ChangeWorkspaceName(message);
+            }
+        );
 
         Console.WriteLine("Press Ctrl+C to exit...");
 

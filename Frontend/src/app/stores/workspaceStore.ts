@@ -59,19 +59,9 @@ export default class WorkspaceStore {
     }
   };
 
-  changeName = async (
-    workspaceId: string,
-    ownerUsername: string,
-    userUsername: string,
-    newName: string
-  ) => {
+  changeName = async (workspaceId: string, newName: string) => {
     try {
-      await agent.Workspaces.changeName(
-        workspaceId,
-        ownerUsername,
-        userUsername,
-        newName
-      );
+      await agent.Workspaces.changeName(workspaceId, newName);
       runInAction(() => {
         const old = this.workspaces!.get(workspaceId);
         this.workspaces!.delete(workspaceId);

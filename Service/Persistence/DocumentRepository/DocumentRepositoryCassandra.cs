@@ -36,13 +36,13 @@ public class DocumentRepositoryCassandra {
 
     }
 
-    /// <summary>
-    /// Write document's new name from Redis pubsub Cassandra
-    /// </summary>
-    /// <param name="documentId"></param>
-    /// <param name="newName"></param>
-    public void ChangeDocumentName(Guid documentId, string documentName) {
+    public async Task ChangeDocumentName(Guid workspaceId, Guid documentId, string newName) {
+        var session = CassandraSessionManager.GetSession();
 
+        var statement = await session.PrepareAsync("UPDATE documents SET documentname = ? WHERE workspaceid = ? AND documentid = ?");
+        var boundStatement = statement.Bind(newName, workspaceId, documentId);
+
+        await session.ExecuteAsync(boundStatement);
     }
 
     /// <summary>

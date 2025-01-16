@@ -8,6 +8,7 @@ import { useDisclosure } from "@mantine/hooks";
 import ChangeDocumentNameDialog from "./Dialogs/ChangeDocumentNameDialog";
 import { useStore } from "../../app/stores/store";
 import { observer } from "mobx-react-lite";
+import agent from "../../app/api/agent";
 
 interface DocumentItemProps {
   document: Document;
@@ -32,8 +33,17 @@ const DocumentItem = observer(
         key: "rename",
         icon: <IconPencil size={16} />,
         title: "Rename",
-        onClick: () => {
-          toggleChangeDocumentNameDialog();
+        onClick: async () => {
+          try {
+            await agent.Documents.lock(
+              document.workspaceId,
+              document.documentId,
+              document.documentName
+            );
+            toggleChangeDocumentNameDialog();
+          } catch (error) {
+            console.error(error);
+          }
         },
         requiredPermission: PermissionLevel.Edit,
       },

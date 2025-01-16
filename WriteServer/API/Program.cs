@@ -1,6 +1,7 @@
 using ApplicationLogic;
 using Persistence.DocumentRepository;
 using Persistence.UserRepository;
+using Persistence.WorkspaceRepository;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,9 +20,14 @@ builder.Services.AddScoped<DocumentRepositoryCassandra>();
 builder.Services.AddScoped<DocumentRepositoryRedis>();
 builder.Services.AddScoped<UserRepositoryCassandra>();
 builder.Services.AddScoped<UserRepositoryRedis>();
+builder.Services.AddScoped<WorkspaceRepositoryCassandra>();
+builder.Services.AddScoped<WorkspaceRepositoryRedis>();
 
 builder.Services.AddScoped<UpdatesLogic>();
 builder.Services.AddScoped<UserLogic>();
+builder.Services.AddScoped<DocumentLogic>();
+builder.Services.AddScoped<LockLogic>();
+builder.Services.AddScoped<WorkspaceLogic>();
 
 builder.Services.AddControllers();
 
