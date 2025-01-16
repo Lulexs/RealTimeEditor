@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using RedLockNet.SERedis;
 using RedLockNet.SERedis.Configuration;
+using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -12,6 +13,7 @@ public class RedLockManager : IDisposable
 
     private readonly ILogger<RedLockManager> _logger;
 
+    private readonly ConnectionMultiplexer _redisConnection;
 
     public RedLockManager(ILogger<RedLockManager> logger)
     {
@@ -35,13 +37,25 @@ public class RedLockManager : IDisposable
         }
 
 
-        var redisEndpoints = new List<RedLockEndPoint>
+        var redisPassword = configuration["RedisPassword"];
+        var redisUser = configuration["RedisUser"];
+
+        var configurationOptions = new ConfigurationOptions
         {
-            new DnsEndPoint(redisEndpoint, redisPort)
+           EndPoints = {{redisEndpoint, redisPort}},
+           User = string.IsNullOrEmpty(redisUser) ? null : redisUser,
+           Password = string.IsNullOrEmpty(redisPassword) ? null : redisPassword,
+           AbortOnConnectFail = false 
         };
 
-        
-        _redLockFactory = RedLockFactory.Create(redisEndpoints);
+        _redisConnection = ConnectionMultiplexer.Connect(configurationOptions);
+
+        var multiplexers = new List<RedLockMultiplexer>
+        {
+            _redisConnection
+        };
+
+        _redLockFactory = RedLockFactory.Create(multiplexers);
         _logger.LogInformation("RedLockManager has been initialized with Redis endpoint {RedisEndpoint}:{RedisPort}", redisEndpoint, redisPort);
 
     }
@@ -55,6 +69,6 @@ public class RedLockManager : IDisposable
     {
         _logger.LogInformation("Disposing RedLockManager and releasing resources.");
 
-        _redLockFactory.Dispose(); // Oslobađa sve Redis konekcije
+        _redLockFactory.Dispose(); 
     }
 }

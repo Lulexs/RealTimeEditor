@@ -39,7 +39,7 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-//var redLockManager = app.Services.GetRequiredService<RedLockManager>(); PROVERA DA LI INICIJALIZUJE LEPO REDLOCK - RADI
+//var redLockManager = app.Services.GetRequiredService<RedLockManager>(); //PROVERA DA LI INICIJALIZUJE LEPO REDLOCK - RADI
 
 
 if (app.Environment.IsDevelopment()) {
