@@ -75,10 +75,10 @@ public class DocumentsController : ControllerBase {
                 }
 
                 await _documentRepository.UpdateDocumentNameAsync(dto.WorkspaceId, dto.DocumentId, dto.NewName);
-                
+
                 Console.WriteLine($"Changed document {dto.WorkspaceId}/{dto.DocumentId} name to {dto.WorkspaceId}/{dto.NewName}");
                 return Ok("Document name changed successfully.");
-                
+
 
             }
             catch (Exception e) {

@@ -22,7 +22,7 @@ public class WorkspacesController : ControllerBase {
         {
                 new() {
                     Username = username,
-                    WorkspaceId = Guid.NewGuid(),
+                    WorkspaceId = Guid.Parse("bb4f9ca1-41ec-469c-bbc8-666666666666"),
                     WorkspaceName = "Project Alpha",
                     OwnerUsername = username,
                     Permission = PermissionLevel.ADMIN,
