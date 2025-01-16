@@ -68,19 +68,17 @@ public class DocumentsController : ControllerBase {
                 return StatusCode(409, "Another user is changing the document name");
             }
             try {
+                Console.WriteLine($"Lock succesfully acquired changing document name for {dto.WorkspaceId}/{dto.DocumentId} to {dto.NewName}");
                 var documentExists = await _documentRepository.VerifyExistsAsync(dto.WorkspaceId, dto.DocumentId);
                 if (!documentExists) {
                     return NotFound("Document does not exist.");
                 }
 
-                var result = await _documentRepository.UpdateDocumentNameAsync(dto.WorkspaceId, dto.DocumentId, dto.NewName);
-                if (result) {
-                    Console.WriteLine($"Changed document {dto.WorkspaceId}/{dto.DocumentId} name to {dto.WorkspaceId}/{dto.NewName}");
-                    return Ok("Document name changed successfully.");
-                }
-                else {
-                    return StatusCode(500, "An error occurred while changing the document name.");
-                }
+                await _documentRepository.UpdateDocumentNameAsync(dto.WorkspaceId, dto.DocumentId, dto.NewName);
+                
+                Console.WriteLine($"Changed document {dto.WorkspaceId}/{dto.DocumentId} name to {dto.WorkspaceId}/{dto.NewName}");
+                return Ok("Document name changed successfully.");
+                
 
             }
             catch (Exception e) {
