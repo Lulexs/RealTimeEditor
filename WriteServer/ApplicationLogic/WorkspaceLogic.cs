@@ -49,7 +49,6 @@ public class WorkspaceLogic {
         await _wsRepoCass.RemoveUserFromWorkspaceAsync(workspaceId, username);
 
         
-        //await _wsRepoRed.RemoveUserFromWorkspaceCacheAsync(workspaceId, username);
     }
 
 
