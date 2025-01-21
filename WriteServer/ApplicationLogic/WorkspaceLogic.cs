@@ -1,6 +1,7 @@
 using ApplicationLogic.Dtos;
 using ApplicationLogic.Exceptions;
 using Persistence.WorkspaceRepository;
+using Models;
 
 namespace ApplicationLogic;
 
@@ -20,4 +21,36 @@ public class WorkspaceLogic {
         }
         await _wsRepoRed.ChangeName(dto.WorkspaceId, dto.NewName);
     }
+
+    public async Task KickUserFromWorkspace(Guid workspaceId, string username, string performer)
+    {
+
+        var workspaceExists = await _wsRepoCass.VerifyExistsAsync(workspaceId);
+        if (!workspaceExists)
+        {
+            throw new WorkspaceNotFoundException($"Workspace {workspaceId} not found");
+        }
+
+        
+        var performerPermission = await _wsRepoCass.GetUserPermissionAsync(workspaceId, performer);
+        if (performerPermission != PermissionLevel.ADMIN && performerPermission != PermissionLevel.OWNER)
+        {
+            throw new UnauthorizedAccessException("Only admins or owners can kick users from the workspace.");
+        }
+
+        
+        var userExists = await _wsRepoCass.VerifyUserExistsInWorkspaceAsync(workspaceId, username);
+        if (!userExists)
+        {
+            throw new WorkspaceNotFoundException($"User {username} not found in workspace {workspaceId}");
+        }
+
+        
+        await _wsRepoCass.RemoveUserFromWorkspaceAsync(workspaceId, username);
+
+        
+        //await _wsRepoRed.RemoveUserFromWorkspaceCacheAsync(workspaceId, username);
+    }
+
+
 }
