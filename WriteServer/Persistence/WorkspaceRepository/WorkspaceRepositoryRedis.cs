@@ -23,6 +23,20 @@ public class WorkspaceRepositoryRedis {
 
     }
 
+    public async Task KickUser(Guid workspaceId, string username, string performer) {
+        var subscriber = RedisSessionManager.GetSubscriber();
+
+        string channelName = $"kickuser";
+        var message = new {
+            WorkspaceId = workspaceId,
+            Username = username,
+            Performer = performer
+        };
+        string serializedMessage = JsonSerializer.Serialize(message);
+
+        await subscriber.PublishAsync(new RedisChannel(channelName, RedisChannel.PatternMode.Literal), serializedMessage);
+    }
+
     public async Task ChangeName(Guid workspaceID, string newName) {
         var subscriber = RedisSessionManager.GetSubscriber();
 

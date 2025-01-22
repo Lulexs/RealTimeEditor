@@ -81,6 +81,10 @@ const Workspaces = {
       WorkspaceId: workspaceId,
       NewName: newName,
     }),
+  lockUserManagement: (workspaceId: string) =>
+    requests.post<void>(`/workspaces/lockKickChangePermLevel`, {
+      WorkspaceId: workspaceId,
+    }),
 };
 
 const Documents = {

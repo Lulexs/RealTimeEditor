@@ -1,7 +1,6 @@
 using ApplicationLogic.Dtos;
 using ApplicationLogic;
 using ApplicationLogic.Exceptions;
-using ApplicationLogic.Utilities;
 
 namespace API.Controllers;
 

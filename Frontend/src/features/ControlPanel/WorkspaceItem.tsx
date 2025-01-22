@@ -81,7 +81,7 @@ const WorkspaceItem = observer(({ workspace }: WorkspaceItemProps) => {
       icon: <IconRefresh size={16} />,
       title: "Refresh",
       onClick: () => {
-        workspaceStore.refresh(workspace.ownerUsername, workspace.workspaceId);
+        workspaceStore.refresh(userStore.user!.username, workspace.workspaceId);
       },
       requiredPermission: PermissionLevel.ViewOnly,
     },
@@ -106,9 +106,14 @@ const WorkspaceItem = observer(({ workspace }: WorkspaceItemProps) => {
       key: "users",
       icon: <IconUsers size={16} />,
       title: "Manage Users",
-      onClick: () => {
-        workspaceStore.users(workspace.workspaceId);
-        toggleManageUsersDialog();
+      onClick: async () => {
+        try {
+          await agent.Workspaces.lockUserManagement(workspace.workspaceId);
+          workspaceStore.users(workspace.workspaceId);
+          toggleManageUsersDialog();
+        } catch (error) {
+          console.error(error);
+        }
       },
       requiredPermission: PermissionLevel.Admin,
     },
