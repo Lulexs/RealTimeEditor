@@ -2,6 +2,7 @@ using ApplicationLogic;
 using ApplicationLogic.Dtos;
 using ApplicationLogic.Exceptions;
 using Models;
+using Persistence;
 
 namespace API.Controllers;
 
@@ -20,45 +21,138 @@ public class DocumentsController : ControllerBase {
 
     [HttpGet("{workspaceId}")]
     public async Task<ActionResult<List<Document>>> GetDocumentsInWorkspace(Guid workspaceId) {
-        Console.WriteLine($"Getting documents for workspace ${workspaceId}");
-        await Task.Delay(10);
-        var documents = Enumerable.Range(1, 4).Select(index => new Document {
-            WorkspaceId = workspaceId,
-            DocumentId = Guid.NewGuid(),
-            DocumentName = $"Document_{index}",
-            CreatedAt = DateTime.UtcNow.AddDays(-index),
-            CreatorUsername = $"user{index}",
-            SnapshotIds = [new("snapshot1", DateTime.Now), new("snapshot2", DateTime.Now), new("snapshot3", DateTime.Now)]
-        }).ToList();
+        try
+        {
+            var session = CassandraSessionManager.GetSession();
+            var documentStatement = await session.PrepareAsync(
+                "SELECT documentid, documentname, createdat, creatorusername FROM documents WHERE workspaceid = ?"
+            );
+            var documentBoundStatement = documentStatement.Bind(workspaceId);
+            var documentResult = await session.ExecuteAsync(documentBoundStatement);
 
-        documents[0].WorkspaceId = Guid.Parse("bb4f9ca1-41ec-469c-bbc8-666666666666");
-        documents[0].DocumentId = Guid.Parse("0d49e653-9d02-4339-98a2-f122222425b2");
-        documents[1].WorkspaceId = Guid.Parse("f6f0b661-8dd7-4122-954e-561621f92bbd");
-        documents[1].DocumentId = Guid.Parse("d8728b9a-da67-420d-832a-5e855d84274b");
+            var documents = new List<Document>();
 
-        return Ok(documents);
+            foreach (var row in documentResult)
+            {
+                var documentId = row.GetValue<Guid>("documentid");
+                var snapshotStatement = await session.PrepareAsync(
+                    "SELECT snapshotid, updateid FROM updates_by_snapshot WHERE documentid = ?"
+                );
+                var snapshotBoundStatement = snapshotStatement.Bind(documentId);
+                var snapshotResult = await session.ExecuteAsync(snapshotBoundStatement);
+
+                var snapshots = new List<Snapshot>();
+                foreach (var snapshotRow in snapshotResult)
+                {
+                    snapshots.Add(new Snapshot(
+                        snapshotRow.GetValue<string>("snapshotid"),
+                        DateTime.UtcNow // Ne pamti se u bazi, pa sam stavio trenutno vreme...
+                    ));
+                }
+                documents.Add(new Document
+                {
+                    WorkspaceId = workspaceId,
+                    DocumentId = documentId,
+                    DocumentName = row.GetValue<string>("documentname"),
+                    CreatedAt = row.GetValue<DateTime>("createdat"),
+                    CreatorUsername = row.GetValue<string>("creatorusername"),
+                    SnapshotIds = snapshots
+                });
+            }
+
+            if (documents.Count == 0)
+            {
+                return NotFound($"No documents found for workspace {workspaceId}.");
+            }
+
+            _logger.LogInformation($"Retrieved {documents.Count} documents with snapshots for workspace {workspaceId}");
+            return Ok(documents);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error during GetDocumentsInWorkspace: {ex.Message}");
+            return StatusCode(500, "An error occurred while retrieving documents.");
+        }
     }
 
     [HttpPost("")]
     public async Task<ActionResult<Document>> CreateDocument([FromBody] CreateDocumentDto dto) {
-        Console.WriteLine($"Createing document for workspace ${dto.WorkspaceId} with name ${dto.DocumentName}");
-        await Task.Delay(10);
-        var doc = new Document() {
-            WorkspaceId = dto.WorkspaceId,
-            DocumentId = Guid.NewGuid(),
-            DocumentName = dto.DocumentName,
-            CreatorUsername = dto.CreatorUsername,
-            CreatedAt = DateTime.Now,
-            SnapshotIds = [new("snapshot1", DateTime.Now)]
-        };
-        return Ok(doc);
+        try
+        {
+            var session = CassandraSessionManager.GetSession();
+            var documentId = Guid.NewGuid();
+            var createdAt = DateTime.UtcNow;
+            var statement = await session.PrepareAsync(
+                "INSERT INTO documents (workspaceid, documentid, documentname, creatorusername, createdat) " +
+                "VALUES (?, ?, ?, ?, ?)"
+            );
+            var boundStatement = statement.Bind(dto.WorkspaceId, documentId, dto.DocumentName, dto.CreatorUsername, createdAt);
+            await session.ExecuteAsync(boundStatement);
+
+            var newDocument = new Document
+            {
+                WorkspaceId = dto.WorkspaceId,
+                DocumentId = documentId,
+                DocumentName = dto.DocumentName,
+                CreatorUsername = dto.CreatorUsername,
+                CreatedAt = createdAt,
+                SnapshotIds = new List<Snapshot> { new Snapshot("snapshot1", DateTime.UtcNow) } // Ne znam default li treba??
+            };
+
+            _logger.LogInformation($"Document {documentId} created in workspace {dto.WorkspaceId} with name {dto.DocumentName}");
+            return Ok(newDocument);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error during CreateDocument: {ex.Message}");
+            return StatusCode(500, "An error occurred while creating the document.");
+        }
     }
 
     [HttpDelete("{workspaceId}/{documentId}/{actionPerformer}")]
     public async Task<ActionResult> DeleteDocument(Guid workspaceId, Guid documentId, string actionPerformer) {
-        Console.WriteLine($"{actionPerformer} deleting document {workspaceId}/{documentId}");
-        await Task.Delay(10);
-        return Ok();
+        try
+        {
+            var session = CassandraSessionManager.GetSession();
+            var userStatement = await session.PrepareAsync(
+                "SELECT permissionlevel FROM users_by_workspace WHERE workspaceid = ? AND username = ?"
+            );
+            var userBoundStatement = userStatement.Bind(workspaceId, actionPerformer);
+            var userResultSet = await session.ExecuteAsync(userBoundStatement);
+
+            var userRow = userResultSet.FirstOrDefault();
+            if (userRow == null)
+            {
+                return NotFound($"User {actionPerformer} not found in workspace {workspaceId}.");
+            }
+            var permissionLevel = (PermissionLevel)userRow.GetValue<int>("permissionlevel");
+            if (permissionLevel != PermissionLevel.OWNER)
+            {
+                return Forbid($"User {actionPerformer} is not authorized to delete documents in workspace {workspaceId}.");
+            }
+
+            // snapshotovi vezani za dokument
+            var snapshotStatement = await session.PrepareAsync(
+                "DELETE FROM updates_by_snapshot WHERE documentid = ?"
+            );
+            var snapshotBoundStatement = snapshotStatement.Bind(documentId);
+            await session.ExecuteAsync(snapshotBoundStatement);
+
+            // brisi dokument finally
+            var documentStatement = await session.PrepareAsync(
+                "DELETE FROM documents WHERE workspaceid = ? AND documentid = ?"
+            );
+            var documentBoundStatement = documentStatement.Bind(workspaceId, documentId);
+            await session.ExecuteAsync(documentBoundStatement);
+
+            _logger.LogInformation($"Document {documentId} in workspace {workspaceId} and its snapshots deleted by {actionPerformer}");
+            return Ok($"Document {documentId} and all its snapshots were deleted successfully.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error during DeleteDocument: {ex.Message}");
+            return StatusCode(500, "An error occurred while deleting the document.");
+        }
     }
 
     [HttpPost("lock")]
