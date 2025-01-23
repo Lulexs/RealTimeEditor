@@ -48,6 +48,14 @@ public class Program {
                 await wsLogic.KickUserFromWorkspace(message);
             }
         );
+        await subscriber.SubscribeAsync(new RedisChannel("changeuserpermission", RedisChannel.PatternMode.Literal),
+            async (redisChannel, message) =>
+            {
+                var wsLogic = new WorkspaceLogic(new Persistence.WorkspaceRepository.WorkspaceRepositoryCassandra());
+
+                await wsLogic.ApplyUserPermissionChange(message);
+            }
+        );
 
         Console.WriteLine("Press Ctrl+C to exit...");
 

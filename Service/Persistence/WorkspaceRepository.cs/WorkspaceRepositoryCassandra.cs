@@ -90,4 +90,19 @@ public class WorkspaceRepositoryCassandra {
         var boundStatement1 = statement1.Bind(username, workspaceId);
         await session.ExecuteAsync(boundStatement1);
     }
+    public async Task UpdateUserPermissionAsync(Guid workspaceId, string username, int newPermissionLevel)
+    {
+        var session = CassandraSessionManager.GetSession();
+        var updateUsersByWorkspaceStatement = await session.PrepareAsync(
+            "UPDATE users_by_workspace SET permissionlevel = ? WHERE workspaceid = ? AND username = ?"
+        );
+        var updateUsersByWorkspaceBound = updateUsersByWorkspaceStatement.Bind(newPermissionLevel, workspaceId, username);
+        await session.ExecuteAsync(updateUsersByWorkspaceBound);
+
+        var updateWorkspacesByUserStatement = await session.PrepareAsync(
+            "UPDATE workspaces_by_user SET permissionlevel = ? WHERE username = ? AND workspaceid = ?"
+        );
+        var updateWorkspacesByUserBound = updateWorkspacesByUserStatement.Bind(newPermissionLevel, username, workspaceId);
+        await session.ExecuteAsync(updateWorkspacesByUserBound);
+    }
 }

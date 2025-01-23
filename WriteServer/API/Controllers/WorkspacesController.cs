@@ -329,10 +329,27 @@ public class WorkspacesController : ControllerBase {
     }
 
     [HttpPut("users/{username}/{newPermLevel}/{performer}")]
-    public async Task<ActionResult> ChangeUserPermLevel(string username, PermissionLevel newPermLevel, string performer) {
-        Console.WriteLine($"Changing {username} permission to {newPermLevel} by {performer}");
-        await Task.Delay(10);
-        return Ok();
+    public async Task<ActionResult> ChangeUserPermLevel(Guid workspaceId, string username, PermissionLevel newPermLevel, string performer) {
+        try
+        {
+            await _workspaceLogic.ChangeUserPermission(workspaceId, username, newPermLevel, performer);
+            return Ok($"User {username}'s permission level has been successfully changed to {newPermLevel} by {performer}.");
+        }
+        catch (UnauthorizedAccessException e)
+        {
+            _logger.LogInformation("Permission change unauthorized: {}", e.Message);
+            return Forbid(e.Message);
+        }
+        catch (WorkspaceNotFoundException e)
+        {
+            _logger.LogInformation("Permission change failed: {}", e.Message);
+            return NotFound(e.Message);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError("Error during ChangeUserPermLevel: {}", e.Message);
+            return StatusCode(500, "An error occurred while changing the user's permission level.");
+        }
     }
     // TODO:
     [HttpGet("{ownerUsername}/{workspaceId}")]

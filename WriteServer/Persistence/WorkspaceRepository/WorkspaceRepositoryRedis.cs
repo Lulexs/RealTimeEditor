@@ -23,6 +23,23 @@ public class WorkspaceRepositoryRedis {
 
     }
 
+    public async Task PublishPermissionChange(Guid workspaceId, string username, PermissionLevel newPermLevel, string performer)
+    {
+        var subscriber = RedisSessionManager.GetSubscriber();
+
+        string channelName = "changeuserpermission";
+        var message = new
+        {
+            WorkspaceId = workspaceId,
+            Username = username,
+            NewPermission = (int)newPermLevel,
+            Performer = performer
+        };
+        string serializedMessage = JsonSerializer.Serialize(message);
+
+        await subscriber.PublishAsync(new RedisChannel(channelName, RedisChannel.PatternMode.Literal), serializedMessage);
+    }
+
     public async Task KickUser(Guid workspaceId, string username, string performer) {
         var subscriber = RedisSessionManager.GetSubscriber();
 

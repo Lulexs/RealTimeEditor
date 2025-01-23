@@ -32,5 +32,15 @@ public class WorkspaceLogic {
         await _wsRepoRed.KickUser(workspaceId, username, performer);
     }
 
+    public async Task ChangeUserPermission(Guid workspaceId, string username, PermissionLevel newPermLevel, string performer)
+    {
+        var workspaceExists = await _wsRepoCass.VerifyExistsAsync(workspaceId);
+        if (!workspaceExists)
+        {
+            throw new WorkspaceNotFoundException($"Workspace {workspaceId} not found");
+        }
+        await _wsRepoRed.PublishPermissionChange(workspaceId, username, newPermLevel, performer);
+    }
+
 
 }
