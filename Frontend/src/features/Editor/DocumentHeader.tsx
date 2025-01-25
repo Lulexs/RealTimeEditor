@@ -85,7 +85,7 @@ const DocumentHeader = ({
   };
 
   const handleCreateSnapshot = () => {
-    documentStore.createSnapshot(document.documentId);
+    documentStore.createSnapshot(document.workspaceId, document.documentId);
   };
 
   const handleForkSnapshot = () => {

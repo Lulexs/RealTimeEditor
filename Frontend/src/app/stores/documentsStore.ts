@@ -108,9 +108,9 @@ export default class DocumentStore {
     }
   };
 
-  createSnapshot = async (documentId: string) => {
+  createSnapshot = async (workspaceId: string, documentId: string) => {
     try {
-      const result = await agent.Documents.snapshot(documentId);
+      const result = await agent.Documents.snapshot(workspaceId, documentId);
       runInAction(() => {
         this.selectedDocument?.snapshotIds.push(result);
         console.log(this.documents);

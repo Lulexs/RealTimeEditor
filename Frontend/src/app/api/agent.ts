@@ -109,8 +109,11 @@ const Documents = {
     }),
   delete: (workspaceId: string, documentId: string, username: string) =>
     requests.del<void>(`/documents/${workspaceId}/${documentId}/${username}`),
-  snapshot: (documentId: string) =>
-    requests.post<Snapshot>(`/documents/snapshots/${documentId}`, {}),
+  snapshot: (workspaceId: string, documentId: string) =>
+    requests.post<Snapshot>(
+      `/documents/snapshots/${workspaceId}/${documentId}`,
+      {}
+    ),
   forkSnapshot: (
     workspaceId: string,
     documentId: string,

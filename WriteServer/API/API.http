@@ -1,6 +1,6 @@
 @API_HostAddress = http://localhost:5287
 
-GET {{API_HostAddress}}/weatherforecast/
+POST {{API_HostAddress}}/documents/snapshots/3e9c6231-2070-47db-9eb8-2543cda8b5cf/f506e3a0-5b2e-42c7-bd4f-6cbbf66f2d80
 Accept: application/json
 
 ###
