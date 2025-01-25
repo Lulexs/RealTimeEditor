@@ -114,7 +114,6 @@ public class UpdatesController : ControllerBase {
         await interWriteServerSub.SubscribeAsync(new RedisChannel("realtimeupdate-*", RedisChannel.PatternMode.Pattern),
             async (channel, message) => {
                 if (channel.ToString() == $"realtimeupdate-{doc.DocumentId}" && !message.IsNullOrEmpty) {
-                    _logger.LogInformation("Here");
                     var deserializedMessage = JsonSerializer.Deserialize<UpdateDto>(message!);
                     if (deserializedMessage == null)
                         return;

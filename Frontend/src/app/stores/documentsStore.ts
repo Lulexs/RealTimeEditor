@@ -31,7 +31,10 @@ export default class DocumentStore {
   };
 
   selectDocument = (doc: Document) => {
-    runInAction(() => (this.selectedDocument = doc));
+    runInAction(() => {
+      console.log(doc);
+      this.selectedDocument = doc;
+    });
   };
 
   loadDocuments = async (workspaceId: string) => {

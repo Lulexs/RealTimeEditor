@@ -21,55 +21,52 @@ public class DocumentsController : ControllerBase {
 
     [HttpGet("{workspaceId}")]
     public async Task<ActionResult<List<Document>>> GetDocumentsInWorkspace(Guid workspaceId) {
-        try
-        {
+        try {
             var session = CassandraSessionManager.GetSession();
             var documentStatement = await session.PrepareAsync(
-                "SELECT documentid, documentname, createdat, creatorusername FROM documents WHERE workspaceid = ?"
+                "SELECT * FROM documents WHERE workspaceid = ?"
             );
             var documentBoundStatement = documentStatement.Bind(workspaceId);
-            var documentResult = await session.ExecuteAsync(documentBoundStatement);
+            var documentResult = (await session.ExecuteAsync(documentBoundStatement)).ToList();
 
             var documents = new List<Document>();
 
-            foreach (var row in documentResult)
-            {
-                var documentId = row.GetValue<Guid>("documentid");
-                var snapshotStatement = await session.PrepareAsync(
-                    "SELECT snapshotid, updateid FROM updates_by_snapshot WHERE documentid = ?"
-                );
-                var snapshotBoundStatement = snapshotStatement.Bind(documentId);
-                var snapshotResult = await session.ExecuteAsync(snapshotBoundStatement);
+            foreach (var row in documentResult) {
+                var snapshotIds = new List<Snapshot>();
 
-                var snapshots = new List<Snapshot>();
-                foreach (var snapshotRow in snapshotResult)
-                {
-                    snapshots.Add(new Snapshot(
-                        snapshotRow.GetValue<string>("snapshotid"),
-                        DateTime.UtcNow // Ne pamti se u bazi, pa sam stavio trenutno vreme...
-                    ));
+                int index = 1;
+                while (true) {
+                    string columnName = $"snapshot{index}";
+                    var column = row.GetColumn(columnName);
+
+                    if (column == null) {
+                        break;
+                    }
+
+                    var snapshotTimestamp = row.GetValue<DateTime>(columnName);
+                    snapshotIds.Add(new(columnName, snapshotTimestamp));
+                    index++;
                 }
-                documents.Add(new Document
-                {
-                    WorkspaceId = workspaceId,
-                    DocumentId = documentId,
+
+                var document = new Document {
+                    WorkspaceId = row.GetValue<Guid>("workspaceid"),
+                    DocumentId = row.GetValue<Guid>("documentid"),
                     DocumentName = row.GetValue<string>("documentname"),
                     CreatedAt = row.GetValue<DateTime>("createdat"),
                     CreatorUsername = row.GetValue<string>("creatorusername"),
-                    SnapshotIds = snapshots
-                });
-            }
+                    SnapshotIds = snapshotIds
+                };
 
-            if (documents.Count == 0)
-            {
+                documents.Add(document);
+            }
+            if (documents.Count == 0) {
                 return NotFound($"No documents found for workspace {workspaceId}.");
             }
 
             _logger.LogInformation($"Retrieved {documents.Count} documents with snapshots for workspace {workspaceId}");
             return Ok(documents);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger.LogError($"Error during GetDocumentsInWorkspace: {ex.Message}");
             return StatusCode(500, "An error occurred while retrieving documents.");
         }
@@ -77,8 +74,7 @@ public class DocumentsController : ControllerBase {
 
     [HttpPost("")]
     public async Task<ActionResult<Document>> CreateDocument([FromBody] CreateDocumentDto dto) {
-        try
-        {
+        try {
             var session = CassandraSessionManager.GetSession();
             var documentId = Guid.NewGuid();
             var createdAt = DateTime.UtcNow;
@@ -89,21 +85,19 @@ public class DocumentsController : ControllerBase {
             var boundStatement = statement.Bind(dto.WorkspaceId, documentId, dto.DocumentName, dto.CreatorUsername, createdAt);
             await session.ExecuteAsync(boundStatement);
 
-            var newDocument = new Document
-            {
+            var newDocument = new Document {
                 WorkspaceId = dto.WorkspaceId,
                 DocumentId = documentId,
                 DocumentName = dto.DocumentName,
                 CreatorUsername = dto.CreatorUsername,
                 CreatedAt = createdAt,
-                SnapshotIds = new List<Snapshot> { new Snapshot("snapshot1", DateTime.UtcNow) } // Ne znam default li treba??
+                SnapshotIds = new List<Snapshot> { new Snapshot("snapshot1", DateTime.UtcNow) }
             };
 
             _logger.LogInformation($"Document {documentId} created in workspace {dto.WorkspaceId} with name {dto.DocumentName}");
             return Ok(newDocument);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger.LogError($"Error during CreateDocument: {ex.Message}");
             return StatusCode(500, "An error occurred while creating the document.");
         }
@@ -111,8 +105,7 @@ public class DocumentsController : ControllerBase {
 
     [HttpDelete("{workspaceId}/{documentId}/{actionPerformer}")]
     public async Task<ActionResult> DeleteDocument(Guid workspaceId, Guid documentId, string actionPerformer) {
-        try
-        {
+        try {
             var session = CassandraSessionManager.GetSession();
             var userStatement = await session.PrepareAsync(
                 "SELECT permissionlevel FROM users_by_workspace WHERE workspaceid = ? AND username = ?"
@@ -121,13 +114,11 @@ public class DocumentsController : ControllerBase {
             var userResultSet = await session.ExecuteAsync(userBoundStatement);
 
             var userRow = userResultSet.FirstOrDefault();
-            if (userRow == null)
-            {
+            if (userRow == null) {
                 return NotFound($"User {actionPerformer} not found in workspace {workspaceId}.");
             }
             var permissionLevel = (PermissionLevel)userRow.GetValue<int>("permissionlevel");
-            if (permissionLevel != PermissionLevel.OWNER)
-            {
+            if (permissionLevel != PermissionLevel.OWNER) {
                 return Forbid($"User {actionPerformer} is not authorized to delete documents in workspace {workspaceId}.");
             }
 
@@ -148,8 +139,7 @@ public class DocumentsController : ControllerBase {
             _logger.LogInformation($"Document {documentId} in workspace {workspaceId} and its snapshots deleted by {actionPerformer}");
             return Ok($"Document {documentId} and all its snapshots were deleted successfully.");
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger.LogError($"Error during DeleteDocument: {ex.Message}");
             return StatusCode(500, "An error occurred while deleting the document.");
         }

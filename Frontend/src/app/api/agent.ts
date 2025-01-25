@@ -68,12 +68,13 @@ const Workspaces = {
       `/workspaces/users/${workspaceId}/${username}/${performer}`
     ),
   permChange: (
+    workspaceId: string,
     username: string,
     newPermLevel: PermissionLevel,
     performer: string
   ) =>
     requests.put<void>(
-      `/workspaces/users/${username}/${newPermLevel}/${performer}`,
+      `/workspaces/users/${workspaceId}/${username}/${newPermLevel}/${performer}`,
       {}
     ),
   lock: (workspaceId: string, newName: string) =>

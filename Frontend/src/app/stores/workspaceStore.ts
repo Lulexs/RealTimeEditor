@@ -115,12 +115,18 @@ export default class WorkspaceStore {
   };
 
   permChange = async (
+    workspaceId: string,
     username: string,
     newPermLevel: PermissionLevel,
     performer: string
   ) => {
     try {
-      await agent.Workspaces.permChange(username, newPermLevel, performer);
+      await agent.Workspaces.permChange(
+        workspaceId,
+        username,
+        newPermLevel,
+        performer
+      );
       runInAction(() => {
         this.usersInWorkspace = this.usersInWorkspace!.map((x) => {
           return {

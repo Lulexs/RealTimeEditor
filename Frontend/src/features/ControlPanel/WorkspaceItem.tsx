@@ -219,6 +219,7 @@ const WorkspaceItem = observer(({ workspace }: WorkspaceItemProps) => {
         }}
         onPermissionChange={(username, newPerm) => {
           workspaceStore.permChange(
+            workspace.workspaceId,
             username,
             newPerm,
             userStore.user?.username ?? "InvalidUser"
