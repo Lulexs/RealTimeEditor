@@ -21,6 +21,7 @@ import DocumentHeader from "./DocumentHeader";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../app/stores/store";
 import ReadOnlyPlugin from "./Plugins/ReadOnlyPlugin";
+import { PermissionLevel } from "../../app/models/Workspace";
 
 const avatarToColor = new Map(
   Object.entries({
@@ -56,7 +57,7 @@ export default observer(function Editor() {
     "disconnected" | "connecting" | "connected" | null
   >(null);
   const [contentLoaded, setContentLoaded] = useState(false);
-  const { documentStore, userStore } = useStore();
+  const { documentStore, userStore, workspaceStore } = useStore();
   const [snapshotId, setSnapshotId] = useState("snapshot1");
 
   const composerKey = useMemo(() => {
@@ -161,7 +162,14 @@ export default observer(function Editor() {
         }
       />
       <LexicalComposer key={composerKey} initialConfig={initialConfig}>
-        <ReadOnlyPlugin isReadOnly={snapshotId !== "snapshot1"} />
+        <ReadOnlyPlugin
+          isReadOnly={
+            snapshotId !== "snapshot1" ||
+            workspaceStore.getWorkspace(
+              documentStore.selectedDocument.workspaceId
+            )?.permission === PermissionLevel.ViewOnly
+          }
+        />
         <LoadingTrackerPlugin
           onFirstContentLoad={() => {
             notifications.clean();

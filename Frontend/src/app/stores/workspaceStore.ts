@@ -12,6 +12,10 @@ export default class WorkspaceStore {
     makeAutoObservable(this);
   }
 
+  getWorkspace = (workspaceId: string) => {
+    return this.workspaces?.get(workspaceId);
+  };
+
   loadWorkspaces = async (username: string) => {
     try {
       const result = await agent.Workspaces.list(username);
