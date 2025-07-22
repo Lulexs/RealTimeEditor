@@ -13,7 +13,7 @@ public class RedisSessionManager {
         if (_database == null) {
             lock (LockObject) {
                 if (_database == null) {
-                    InitializeConnectionForRedisCloud();
+                    InitializeConnectionForLocal();
                     _database = _connection.GetDatabase();
                 }
             }
@@ -25,7 +25,7 @@ public class RedisSessionManager {
         if (_subscriber == null) {
             lock (LockObject) {
                 if (_subscriber == null) {
-                    InitializeConnectionForRedisCloud();
+                    InitializeConnectionForLocal();
                     _subscriber = _connection.GetSubscriber();
                 }
             }
