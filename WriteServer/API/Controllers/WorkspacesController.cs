@@ -42,7 +42,7 @@ public class WorkspacesController : ControllerBase {
     public async Task<ActionResult<List<Workspace>>> GetUsersWorkspaces(string username) {
         try {
 
-            var workspaces = await _wsRepoCass.GetUsersWorkspaces(username);
+            var workspaces = await _workspaceLogic.GetUserWorkspaces(username);
 
             _logger.LogInformation("Retrieved {} workspaces for {}", workspaces.Count, username);
             return Ok(workspaces);
@@ -72,10 +72,10 @@ public class WorkspacesController : ControllerBase {
 
         var anyUserUsername = usersInWorkspace.First();
 
-        var workspaceInfo = await _wsRepoCass.GetWorkspaceByUserAndId(anyUserUsername, workspaceId);
-        workspaceInfo.Permission = permissionLevel;
+        var workspaceInfo = await _workspaceLogic.GetWorkspaceByUserAndId(anyUserUsername, workspaceId);
+        workspaceInfo!.Permission = permissionLevel;
 
-        await _wsRepoCass.AddUserToWorkspace(workspaceInfo, dto.Username);
+        await _workspaceLogic.AddUserToWorkspace(workspaceInfo!, dto.Username);
 
         _logger.LogInformation("{} joining {} with pl {}", dto.Username, workspaceId, permissionLevel);
         return Ok(new Workspace() {
@@ -265,36 +265,17 @@ public class WorkspacesController : ControllerBase {
             return StatusCode(500, "An error occurred while changing the user's permission level.");
         }
     }
-    // TODO:
+
     [HttpGet("{ownerUsername}/{workspaceId}")]
     public async Task<ActionResult<Workspace>> Refresh(string ownerUsername, Guid workspaceId) {
         try {
-            var session = CassandraSessionManager.GetSession();
-            var statement = await session.PrepareAsync(
-                "SELECT workspacename, createrusername, permissionlevel, createdat FROM workspaces_by_user " +
-                "WHERE username = ? AND workspaceid = ?"
-            );
-            ownerUsername = ownerUsername.Trim();
+            var workspace = await _workspaceLogic.GetWorkspaceByUserAndId(ownerUsername.Trim(), workspaceId);
 
-            var boundStatement = statement.Bind(ownerUsername, workspaceId);
-            var resultSet = await session.ExecuteAsync(boundStatement);
-            var rows = resultSet.ToList();
-
-            if (rows.Count == 0) {
+            if (workspace == null) {
                 _logger.LogWarning("Workspace with ID {WorkspaceId} and owner {OwnerUsername} not found.",
                     workspaceId, ownerUsername);
                 return NotFound($"Workspace with ID {workspaceId} and owner {ownerUsername} not found.");
             }
-
-            var row = rows.First();
-            var workspace = new Workspace {
-                WorkspaceId = workspaceId,
-                WorkspaceName = row.GetValue<string>("workspacename"),
-                OwnerUsername = row.GetValue<string>("createrusername"),
-                Username = ownerUsername,
-                Permission = (PermissionLevel)row.GetValue<int>("permissionlevel"),
-                CreatedAt = row.GetValue<DateTime>("createdat")
-            };
 
             _logger.LogInformation("Workspace {WorkspaceId} refreshed successfully.", workspaceId);
             return Ok(workspace);
@@ -305,26 +286,11 @@ public class WorkspacesController : ControllerBase {
         }
     }
 
-    // TODO:
     [HttpGet("users/{workspaceId}")]
     public async Task<ActionResult<List<UserInWorkspaceDto>>> GetUsersInWorkspace(Guid workspaceId) {
         try {
-            var session = CassandraSessionManager.GetSession();
-            var statement = await session.PrepareAsync(
-                "SELECT username, permissionlevel FROM users_by_workspace WHERE workspaceid = ?"
-            );
-            var boundStatement = statement.Bind(workspaceId);
-            var resultSet = await session.ExecuteAsync(boundStatement);
 
-            var usersInWorkspace = new List<UserInWorkspaceDto>();
-            foreach (var row in resultSet) {
-                usersInWorkspace.Add(new UserInWorkspaceDto {
-                    WorkspaceId = workspaceId,
-                    Username = row.GetValue<string>("username"),
-                    Permission = (PermissionLevel)row.GetValue<int>("permissionlevel")
-                });
-                Console.WriteLine(row.GetValue<string>("username") + " " + row.GetValue<int>("permissionlevel"));
-            }
+            var usersInWorkspace = await _workspaceLogic.GetUsersInWorkspace(workspaceId);
 
             _logger.LogInformation("Retrieved {} users for workspace {}", usersInWorkspace.Count, workspaceId);
             return Ok(usersInWorkspace);
