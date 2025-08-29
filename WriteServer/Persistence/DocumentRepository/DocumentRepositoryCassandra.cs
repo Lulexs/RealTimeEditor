@@ -113,4 +113,51 @@ public class DocumentRepositoryCassandra {
         await session.ExecuteAsync(documentBoundStatement);
     }
 
+    public async Task<Cassandra.Row?> GetDocumentById(Guid workspaceId, Guid documentId) {
+        var session = CassandraSessionManager.GetSession();
+        var documentStatement = await session.PrepareAsync(
+            "SELECT * FROM documents WHERE workspaceid = ? AND documentid = ?"
+        );
+        var documentBoundStatement = documentStatement.Bind(workspaceId, documentId);
+        var documentResult = (await session.ExecuteAsync(documentBoundStatement)).FirstOrDefault();
+        return documentResult;
+    }
+
+    public async Task<List<Cassandra.Row?>> GetUpdates(Guid documentId) {
+        var session = CassandraSessionManager.GetSession();
+        var updatesStatement = await session.PrepareAsync(
+            "SELECT payload FROM updates_by_snapshot WHERE documentid = ? and snapshotid = ?"
+        );
+        var updatesStatementBound = updatesStatement.Bind(documentId, "snapshot1");
+        var updates = (await session.ExecuteAsync(updatesStatementBound)).ToList();
+        return updates;
+    }
+
+    public async Task CreateSnapshot(Guid workspaceId, Guid documentId, byte[]? mergedUpdates, string columnName) {
+        var session = CassandraSessionManager.GetSession();
+        var newSnapshotStatement = await session.PrepareAsync(
+                    "INSERT INTO updates_by_snapshot(documentId, snapshotId, updateId, payload) VALUES (?, ?, ?, ?)"
+                );
+        var newSnapshotStatementBound = newSnapshotStatement.Bind(documentId, columnName, (long)0, mergedUpdates);
+        await session.ExecuteAsync(newSnapshotStatementBound);
+
+        var alterTable = await session.PrepareAsync(
+            $"ALTER TABLE documents ADD {columnName} timestamp"
+        );
+        var alterTableBound = alterTable.Bind();
+        try {
+            await session.ExecuteAsync(alterTableBound);
+        }
+        catch (Exception) {
+
+        }
+
+        var updateSnapshotTime = await session.PrepareAsync(
+            $"UPDATE documents SET {columnName} = ? where workspaceid = ? and documentid = ?"
+        );
+        var updateSnapshotTimeBound = updateSnapshotTime.Bind(DateTime.UtcNow, workspaceId, documentId);
+        await session.ExecuteAsync(updateSnapshotTimeBound);
+    }
+
+
 }

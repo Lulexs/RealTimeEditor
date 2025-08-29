@@ -2,6 +2,8 @@ using ApplicationLogic.Dtos;
 using ApplicationLogic.Exceptions;
 using Models;
 using Persistence.DocumentRepository;
+using YDotNet.Document;
+using YDotNet.Document.Transactions;
 
 namespace ApplicationLogic;
 
@@ -91,6 +93,43 @@ public class DocumentLogic {
 
         await _docRepoCass.DeleteDocument(workspaceId, documentId);
 
+    }
+
+    public async Task<string> CreateSnapshot(Guid workspaceId, Guid documentId) {
+        var documentResult = await _docRepoCass.GetDocumentById(workspaceId, documentId);
+        if (documentResult == null) {
+            throw new DocumentNotFoundException($"Document {documentId} not found");
+        }
+
+        int index = 1;
+        string columnName;
+        while (true) {
+            columnName = $"snapshot{index}";
+            var column = documentResult.GetColumn(columnName);
+
+            if (column == null || documentResult.GetValue<DateTime?>(columnName) == null) {
+                break;
+            }
+
+            index++;
+        }
+
+        var updates = await _docRepoCass.GetUpdates(documentId);
+
+        Doc doc = new();
+        foreach (var row in updates) {
+            var update = row?.GetValue<byte[]>("payload");
+            Transaction writeTransaction = doc.WriteTransaction();
+            writeTransaction.ApplyV1(update!);
+            writeTransaction.Commit();
+        }
+        Transaction readTransaction = doc.ReadTransaction();
+        var mergedUpdates = readTransaction.StateDiffV1([0]);
+        readTransaction.Commit();
+
+        await _docRepoCass.CreateSnapshot(workspaceId, documentId, mergedUpdates, columnName);
+
+        return columnName;
     }
 
 

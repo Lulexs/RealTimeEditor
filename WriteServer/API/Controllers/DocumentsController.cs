@@ -103,79 +103,9 @@ public class DocumentsController : ControllerBase {
         }
     }
 
-
     [HttpPost("snapshots/{workspaceId}/{documentId}")]
     public async Task<ActionResult<Snapshot>> CreateSnapshot(Guid workspaceId, Guid documentId) {
-        Console.WriteLine("Here");
-        var session = CassandraSessionManager.GetSession();
-        var documentStatement = await session.PrepareAsync(
-            "SELECT * FROM documents WHERE workspaceid = ? AND documentid = ?"
-        );
-        var documentBoundStatement = documentStatement.Bind(workspaceId, documentId);
-        var documentResult = (await session.ExecuteAsync(documentBoundStatement)).FirstOrDefault();
-
-        Console.WriteLine("Here1");
-        if (documentResult == null) {
-            return NotFound("Document not found");
-        }
-        Console.WriteLine("Here2");
-
-        int index = 1;
-        string columnName;
-        while (true) {
-            columnName = $"snapshot{index}";
-            var column = documentResult.GetColumn(columnName);
-
-            if (column == null || documentResult.GetValue<DateTime?>(columnName) == null) {
-                break;
-            }
-
-            index++;
-        }
-
-        Console.WriteLine(columnName);
-
-        var updatesStatement = await session.PrepareAsync(
-            "SELECT payload FROM updates_by_snapshot WHERE documentid = ? and snapshotid = ?"
-        );
-        var updatesStatementBound = updatesStatement.Bind(documentId, "snapshot1");
-        var updates = (await session.ExecuteAsync(updatesStatementBound)).ToList();
-
-        Doc doc = new();
-        foreach (var row in updates) {
-            var update = row.GetValue<byte[]>("payload");
-            Transaction writeTransaction = doc.WriteTransaction();
-            writeTransaction.ApplyV1(update);
-            writeTransaction.Commit();
-        }
-        Transaction readTransaction = doc.ReadTransaction();
-        var mergedUpdates = readTransaction.StateDiffV1([0]);
-        readTransaction.Commit();
-
-        var newSnapshotStatement = await session.PrepareAsync(
-            "INSERT INTO updates_by_snapshot(documentId, snapshotId, updateId, payload) VALUES (?, ?, ?, ?)"
-        );
-        var newSnapshotStatementBound = newSnapshotStatement.Bind(documentId, columnName, (long)0, mergedUpdates);
-
-        await session.ExecuteAsync(newSnapshotStatementBound);
-
-        var alterTable = await session.PrepareAsync(
-            $"ALTER TABLE documents ADD {columnName} timestamp"
-        );
-        var alterTableBound = alterTable.Bind();
-        try {
-            await session.ExecuteAsync(alterTableBound);
-        }
-        catch (Exception) {
-
-        }
-
-        var updateSnapshotTime = await session.PrepareAsync(
-            $"UPDATE documents SET {columnName} = ? where workspaceid = ? and documentid = ?"
-        );
-        var updateSnapshotTimeBound = updateSnapshotTime.Bind(DateTime.UtcNow, workspaceId, documentId);
-        await session.ExecuteAsync(updateSnapshotTimeBound);
-
+        var columnName = await _documentLogic.CreateSnapshot(workspaceId, documentId);
         return Ok(new Snapshot(columnName, DateTime.Now));
     }
 
