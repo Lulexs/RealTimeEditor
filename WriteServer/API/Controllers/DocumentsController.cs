@@ -111,49 +111,7 @@ public class DocumentsController : ControllerBase {
 
     [HttpPost("snapshots")]
     public async Task<ActionResult<Document>> ForkSnapshot([FromBody] ForkSnapshotDto dto) {
-        var session = CassandraSessionManager.GetSession();
-        var documentId = Guid.NewGuid();
-        var createdAt = DateTime.UtcNow;
-        var statement = await session.PrepareAsync(
-            "INSERT INTO documents (workspaceid, documentid, documentname, creatorusername, createdat, snapshot1) " +
-            "VALUES (?, ?, ?, ?, ?, ?)"
-        );
-        var boundStatement = statement.Bind(dto.WorkspaceId, documentId, dto.DocumentName, dto.Forker, createdAt, createdAt);
-        await session.ExecuteAsync(boundStatement);
-
-        var updatesStatement = await session.PrepareAsync(
-             "SELECT payload FROM updates_by_snapshot WHERE documentid = ? and snapshotid = ?"
-        );
-        var updatesStatementBound = updatesStatement.Bind(dto.DocumentId, dto.SnapshotName);
-        var updates = (await session.ExecuteAsync(updatesStatementBound)).ToList();
-
-        Doc doc = new();
-        foreach (var row in updates) {
-            var update = row.GetValue<byte[]>("payload");
-            Transaction writeTransaction = doc.WriteTransaction();
-            writeTransaction.ApplyV1(update);
-            writeTransaction.Commit();
-        }
-        Transaction readTransaction = doc.ReadTransaction();
-        var mergedUpdates = readTransaction.StateDiffV1([0]);
-        readTransaction.Commit();
-
-        var newSnapshotStatement = await session.PrepareAsync(
-            "INSERT INTO updates_by_snapshot(documentId, snapshotId, updateId, payload) VALUES (?, ?, ?, ?)"
-        );
-        var newSnapshotStatementBound = newSnapshotStatement.Bind(documentId, "snapshot1", (long)0, mergedUpdates);
-
-        await session.ExecuteAsync(newSnapshotStatementBound);
-
-        var newDocument = new Document {
-            WorkspaceId = dto.WorkspaceId,
-            DocumentId = documentId,
-            DocumentName = dto.DocumentName,
-            CreatorUsername = dto.Forker,
-            CreatedAt = createdAt,
-            SnapshotIds = new List<Snapshot> { new Snapshot("snapshot1", DateTime.UtcNow) }
-        };
-
+        var newDocument = await _documentLogic.ForkSnapshot(dto);
         return Ok(newDocument);
     }
 

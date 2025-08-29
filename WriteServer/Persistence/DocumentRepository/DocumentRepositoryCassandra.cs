@@ -123,12 +123,12 @@ public class DocumentRepositoryCassandra {
         return documentResult;
     }
 
-    public async Task<List<Cassandra.Row?>> GetUpdates(Guid documentId) {
+    public async Task<List<Cassandra.Row?>> GetUpdates(Guid documentId, string snapshotName) {
         var session = CassandraSessionManager.GetSession();
         var updatesStatement = await session.PrepareAsync(
             "SELECT payload FROM updates_by_snapshot WHERE documentid = ? and snapshotid = ?"
         );
-        var updatesStatementBound = updatesStatement.Bind(documentId, "snapshot1");
+        var updatesStatementBound = updatesStatement.Bind(documentId, snapshotName);
         var updates = (await session.ExecuteAsync(updatesStatementBound)).ToList();
         return updates;
     }
@@ -159,5 +159,13 @@ public class DocumentRepositoryCassandra {
         await session.ExecuteAsync(updateSnapshotTimeBound);
     }
 
+    public async Task SaveUpdates(Guid documentId, byte[]? mergedUpdates) {
+        var session = CassandraSessionManager.GetSession();
+        var newSnapshotStatement = await session.PrepareAsync(
+            "INSERT INTO updates_by_snapshot(documentId, snapshotId, updateId, payload) VALUES (?, ?, ?, ?)"
+        );
+        var newSnapshotStatementBound = newSnapshotStatement.Bind(documentId, "snapshot1", (long)0, mergedUpdates);
+        await session.ExecuteAsync(newSnapshotStatementBound);
+    }
 
 }

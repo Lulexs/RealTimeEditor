@@ -114,7 +114,7 @@ public class DocumentLogic {
             index++;
         }
 
-        var updates = await _docRepoCass.GetUpdates(documentId);
+        var updates = await _docRepoCass.GetUpdates(documentId, "snapshot1");
 
         Doc doc = new();
         foreach (var row in updates) {
@@ -130,6 +130,39 @@ public class DocumentLogic {
         await _docRepoCass.CreateSnapshot(workspaceId, documentId, mergedUpdates, columnName);
 
         return columnName;
+    }
+
+    public async Task<Document> ForkSnapshot(ForkSnapshotDto dto) {
+        var documentId = Guid.NewGuid();
+        var createdAt = DateTime.UtcNow;
+
+        var document = new Document {
+            WorkspaceId = dto.WorkspaceId,
+            DocumentId = documentId,
+            DocumentName = dto.DocumentName,
+            CreatorUsername = dto.Forker,
+            CreatedAt = createdAt,
+            SnapshotIds = new List<Snapshot> { new Snapshot("snapshot1", createdAt) }
+        };
+
+        await _docRepoCass.CreateDocumentAsync(document);
+
+        var updates = await _docRepoCass.GetUpdates(dto.DocumentId, dto.SnapshotName);
+
+        Doc doc = new();
+        foreach (var row in updates) {
+            var update = row?.GetValue<byte[]>("payload");
+            Transaction writeTransaction = doc.WriteTransaction();
+            writeTransaction.ApplyV1(update!);
+            writeTransaction.Commit();
+        }
+        Transaction readTransaction = doc.ReadTransaction();
+        var mergedUpdates = readTransaction.StateDiffV1([0]);
+        readTransaction.Commit();
+
+        await _docRepoCass.SaveUpdates(documentId, mergedUpdates);
+
+        return document;
     }
 
 
