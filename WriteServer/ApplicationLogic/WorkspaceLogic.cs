@@ -63,10 +63,6 @@ public class WorkspaceLogic {
         return workspaces;
     }
 
-    public async Task<bool> UserInWorkspaceCheck(string username, Guid workspaceId) {
-        return (await _wsRepoCass.UserInWorkspaceCheck(username, workspaceId)).Count() != 0;
-    }
-
     public async Task<List<string>> UsersInWorkspace(Guid workspaceId) {
         return await _wsRepoCass.UsersInWorkspace(workspaceId);
     }
@@ -75,8 +71,35 @@ public class WorkspaceLogic {
         return await _wsRepoCass.GetWorkspaceByUserAndId(username, workspaceId);
     }
 
-    public async Task AddUserToWorkspace(Workspace workspace, string username) {
-        await _wsRepoCass.AddUserToWorkspace(workspace, username);
+    public async Task<Workspace> AddUserToWorkspace(JoinWorkspaceDto dto) {
+
+        var decomposed = dto.JoinCode.Split("\\");
+        var workspaceId = Guid.Parse(decomposed[0]);
+        PermissionLevel permissionLevel = (PermissionLevel)int.Parse(decomposed[1]);
+
+        if ((await _wsRepoCass.UserInWorkspaceCheck(dto.Username, workspaceId)).Count() != 0) {
+            throw new Exception("You are already in this workspace");
+        }
+
+        var usersInWorkspace = await UsersInWorkspace(workspaceId);
+
+        if (usersInWorkspace.Count == 0) {
+            throw new WorkspaceNotFoundException("Workspace doesn't exist");
+        }
+
+        var anyUserUsername = usersInWorkspace.First();
+
+        var workspaceInfo = await GetWorkspaceByUserAndId(anyUserUsername, workspaceId);
+
+        await _wsRepoCass.AddUserToWorkspace(workspaceInfo!, dto.Username);
+        return new Workspace {
+            Username = dto.Username,
+            WorkspaceId = workspaceInfo!.WorkspaceId,
+            WorkspaceName = workspaceInfo.WorkspaceName,
+            OwnerUsername = workspaceInfo.OwnerUsername,
+            Permission = permissionLevel,
+            CreatedAt = workspaceInfo.CreatedAt
+        };
     }
 
     public async Task<List<UserInWorkspaceDto>> GetUsersInWorkspace(Guid workspaceId) {

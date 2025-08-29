@@ -56,36 +56,20 @@ public class WorkspacesController : ControllerBase {
     [HttpPost("join")]
     public async Task<ActionResult<Workspace>> JoinWorkspace([FromBody] JoinWorkspaceDto dto) {
 
-        var decomposed = dto.JoinCode.Split("\\");
-        var workspaceId = Guid.Parse(decomposed[0]);
-        PermissionLevel permissionLevel = (PermissionLevel)int.Parse(decomposed[1]);
+        try {
+            var workspace = await _workspaceLogic.AddUserToWorkspace(dto);
 
-        if (await _workspaceLogic.UserInWorkspaceCheck(dto.Username, workspaceId)) {
-            return BadRequest("You are already in this workspace");
+            _logger.LogInformation("{} joining {} with pl {}", dto.Username, workspace.WorkspaceId, workspace.Permission);
+            return Ok(workspace);
         }
-
-        var usersInWorkspace = await _workspaceLogic.UsersInWorkspace(workspaceId);
-
-        if (usersInWorkspace.Count == 0) {
-            return NotFound("Workspace doesn't exist");
+        catch (WorkspaceNotFoundException ex) {
+            _logger.LogWarning(ex, "Workspace not found");
+            return NotFound("Workspace not found");
         }
-
-        var anyUserUsername = usersInWorkspace.First();
-
-        var workspaceInfo = await _workspaceLogic.GetWorkspaceByUserAndId(anyUserUsername, workspaceId);
-        workspaceInfo!.Permission = permissionLevel;
-
-        await _workspaceLogic.AddUserToWorkspace(workspaceInfo!, dto.Username);
-
-        _logger.LogInformation("{} joining {} with pl {}", dto.Username, workspaceId, permissionLevel);
-        return Ok(new Workspace() {
-            Username = dto.Username,
-            WorkspaceId = workspaceInfo.WorkspaceId,
-            WorkspaceName = workspaceInfo.WorkspaceName,
-            OwnerUsername = workspaceInfo.OwnerUsername,
-            Permission = workspaceInfo.Permission,
-            CreatedAt = workspaceInfo.CreatedAt
-        });
+        catch (Exception ex) {
+            _logger.LogError(ex, "Error joining workspace");
+            return StatusCode(500, "An error occurred while joining the workspace.");
+        }
     }
 
     [HttpDelete("{workspaceId}/{username}")]
