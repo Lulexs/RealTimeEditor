@@ -15,11 +15,6 @@ public class WorkspaceLogic {
     }
 
     public async Task<Workspace> CreateWorkspace(WorkspaceDto dto) {
-        var workspaceExists = await _wsRepoCass.VerifyNameExistsAsync(dto.Name);
-        if (workspaceExists) {
-            throw new WorkspaceAlreadyExistsException($"Workspace {dto.Name} already exists");
-        }
-
         var workspace = new Workspace {
             Username = dto.OwnerName,
             WorkspaceId = Guid.NewGuid(),
@@ -61,7 +56,7 @@ public class WorkspaceLogic {
     }
 
     public async Task<List<Workspace>> GetUserWorkspaces(string username) {
-        var workspaces = await _wsRepoCass.GetUsersWorkspaces(username);
+        var workspaces = await _wsRepoCass.GetUserWorkspaces(username);
         return workspaces;
     }
 
@@ -73,12 +68,26 @@ public class WorkspaceLogic {
         return await _wsRepoCass.UsersInWorkspace(workspaceId);
     }
 
-    public async Task<Workspace> GetWorkspaceByUserAndId(string username, Guid workspaceId) {
+    public async Task<Workspace?> GetWorkspaceByUserAndId(string username, Guid workspaceId) {
         return await _wsRepoCass.GetWorkspaceByUserAndId(username, workspaceId);
     }
 
     public async Task AddUserToWorkspace(Workspace workspace, string username) {
         await _wsRepoCass.AddUserToWorkspace(workspace, username);
+    }
+
+    public async Task<List<UserInWorkspaceDto>> GetUsersInWorkspace(Guid workspaceId) {
+        var resultSet = await _wsRepoCass.GetUsersInWorkspace(workspaceId);
+        var usersInWorkspace = new List<UserInWorkspaceDto>();
+        foreach (var row in resultSet) {
+            usersInWorkspace.Add(new UserInWorkspaceDto {
+                WorkspaceId = workspaceId,
+                Username = row.GetValue<string>("username"),
+                Permission = (PermissionLevel)row.GetValue<int>("permissionlevel")
+            });
+        }
+
+        return usersInWorkspace;
     }
 
 }

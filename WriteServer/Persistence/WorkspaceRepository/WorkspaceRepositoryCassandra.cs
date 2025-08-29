@@ -1,29 +1,8 @@
 using Models;
 
-
-
 namespace Persistence.WorkspaceRepository;
 
 public class WorkspaceRepositoryCassandra {
-    /// <summary>
-    /// Get workspace names
-    /// </summary>
-    /// <param name="UserID"></param>
-    /// <returns></returns>
-    public List<Workspace> GetUsersWorkspaces(Guid UserID) {
-        return [];
-    }
-
-    public async Task<bool> VerifyNameExistsAsync(string workspaceName) {
-        var session = CassandraSessionManager.GetSession();
-
-        var statement = await session.PrepareAsync("SELECT workspaceid FROM users_by_workspace WHERE workspacename = ?");
-        var boundStatement = statement.Bind(workspaceName);
-        var result = (await session.ExecuteAsync(boundStatement)).ToList();
-
-        return result.Count != 0;
-    }
-
 
     public async Task<bool> VerifyExistsAsync(Guid workspaceId) {
         var session = CassandraSessionManager.GetSession();
@@ -59,7 +38,7 @@ public class WorkspaceRepositoryCassandra {
         await session.ExecuteAsync(usersByWorkspaceBound);
     }
 
-    public async Task<List<Workspace>> GetUsersWorkspaces(string username) {
+    public async Task<List<Workspace>> GetUserWorkspaces(string username) {
         var session = CassandraSessionManager.GetSession();
 
         var statement = await session.PrepareAsync(
@@ -108,18 +87,19 @@ public class WorkspaceRepositoryCassandra {
         return res.Select(row => row.GetValue<string>("username")).ToList();
     }
 
-    public async Task<Workspace> GetWorkspaceByUserAndId(string username, Guid workspaceId) {
+    public async Task<Workspace?> GetWorkspaceByUserAndId(string username, Guid workspaceId) {
         var session = CassandraSessionManager.GetSession();
-        var workspaceInfoStatement = await session.PrepareAsync("SELECT workspacename, createrusername, createdat FROM workspaces_by_user WHERE username = ? AND workspaceid = ?");
+        var workspaceInfoStatement = await session.PrepareAsync("SELECT workspacename, createrusername, permissionlevel, createdat FROM workspaces_by_user WHERE username = ? AND workspaceid = ?");
         var workspaceInfoStatementBound = workspaceInfoStatement.Bind(username, workspaceId);
-        var workspaceInfoRow = (await session.ExecuteAsync(workspaceInfoStatementBound)).First();
-        return new Workspace {
+        var workspaceInfoRow = (await session.ExecuteAsync(workspaceInfoStatementBound)).FirstOrDefault();
+        return workspaceInfoRow != null ? new Workspace {
             WorkspaceId = workspaceId,
             WorkspaceName = workspaceInfoRow.GetValue<string>("workspacename"),
             OwnerUsername = workspaceInfoRow.GetValue<string>("createrusername"),
             CreatedAt = workspaceInfoRow.GetValue<DateTime>("createdat"),
-            Username = username
-        };
+            Username = username,
+            Permission = (PermissionLevel)workspaceInfoRow.GetValue<int>("permissionlevel"),
+        } : null;
     }
 
     public async Task AddUserToWorkspace(Workspace workspace, string username) {
@@ -141,6 +121,15 @@ public class WorkspaceRepositoryCassandra {
             workspace.WorkspaceId, username, (int)workspace.Permission
         );
         await session.ExecuteAsync(usersByWorkspaceBound);
+    }
+
+    public async Task<Cassandra.RowSet> GetUsersInWorkspace(Guid workspaceId) {
+        var session = CassandraSessionManager.GetSession();
+        var statement = await session.PrepareAsync(
+            "SELECT username, permissionlevel FROM users_by_workspace WHERE workspaceid = ?"
+        );
+        var boundStatement = statement.Bind(workspaceId);
+        return await session.ExecuteAsync(boundStatement);
     }
 
 }
