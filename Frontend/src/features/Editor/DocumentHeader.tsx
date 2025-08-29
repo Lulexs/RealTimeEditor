@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Text,
   Title,
@@ -30,12 +30,14 @@ import { Document } from "../../app/models/Document";
 import { useStore } from "../../app/stores/store";
 import { useDisclosure } from "@mantine/hooks";
 import ForkSnapshotDialog from "../ControlPanel/Dialogs/ForkSnapshotDialog";
+import { observer } from "mobx-react-lite";
 
 type ConnectionStatus = "connected" | "connecting" | "disconnected";
 
 interface DocumentHeaderProps {
   document: Document;
   connectionStatus: ConnectionStatus;
+  selectedSnapshot: string;
   selectSnapshot: React.Dispatch<React.SetStateAction<string>>;
 }
 
@@ -53,27 +55,21 @@ const getStatusConfig = (status: ConnectionStatus) => {
 const DocumentHeader = ({
   document,
   connectionStatus,
+  selectedSnapshot,
   selectSnapshot,
 }: DocumentHeaderProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(document.documentName);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [selectedSnapshot, setSelectedSnapshot] = useState(
-    document.snapshotIds[0]?.name || ""
-  );
+  const [snapshotOptions, setSnapshotOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
   const { documentStore, userStore } = useStore();
 
   const [
     forkSnapshotDialogOpened,
     { toggle: toggleForkSnapshotDialog, close: closeForkSnapshotDialog },
   ] = useDisclosure(false);
-
-  const snapshotOptions = document.snapshotIds.map((snapshot) => ({
-    value: snapshot.name,
-    label: `${snapshot.name} (${new Date(
-      snapshot.createdAt
-    ).toLocaleString()})`,
-  }));
 
   const handleNameSave = () => {
     documentStore.changeDocumentName(
@@ -93,11 +89,18 @@ const DocumentHeader = ({
   };
 
   const handleSnapshotChange = (value: string) => {
-    setSelectedSnapshot(value);
     selectSnapshot((_) => value);
   };
 
   const statusConfig = getStatusConfig(connectionStatus);
+
+  useEffect(() => {
+    const opts = document.snapshotIds.map(s => ({
+      value: s.name,
+      label: `${s.name} (${new Date(s.createdAt).toLocaleString()})`,
+    }));
+    setSnapshotOptions(opts);
+  }, [document.snapshotIds]);
 
   return (
     <>
@@ -283,4 +286,4 @@ const DocumentHeader = ({
   );
 };
 
-export default DocumentHeader;
+export default observer(DocumentHeader);

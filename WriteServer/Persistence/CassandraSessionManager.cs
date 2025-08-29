@@ -4,11 +4,10 @@ using Microsoft.Extensions.Configuration;
 using Models;
 
 namespace Persistence;
-// TODO VRATI NA INTERNAL DULEEE
+
 public class CassandraSessionManager {
     private static ISession _session = null!;
     private static readonly object LockObject = new();
-    //I OVO
     public static ISession GetSession() {
         if (_session == null) {
             lock (LockObject) {

@@ -69,7 +69,15 @@ export default observer(function Editor() {
     setConnectionStatus(null);
     setContentLoaded(false);
     setActiveUsers([]);
-  }, [documentStore.selectedDocument, snapshotId]);
+    setSnapshotId("snapshot1");
+  }, [documentStore.selectedDocument]);
+
+  useEffect(() => {
+    setYjsProvider(null);
+    setConnectionStatus(null);
+    setContentLoaded(false);
+    setActiveUsers([]);
+  }, [snapshotId]);
 
   const handleAwarenessUpdate = useCallback(() => {
     const awareness = yjsProvider?.awareness;
@@ -161,13 +169,14 @@ export default observer(function Editor() {
     <>
       <DocumentHeader
         document={documentStore.selectedDocument}
+        selectedSnapshot={snapshotId}
         selectSnapshot={setSnapshotId}
         connectionStatus={
           connectionStatus !== "connected" && connectionStatus != null
             ? connectionStatus
             : contentLoaded
-            ? "connected"
-            : "connecting"
+              ? "connected"
+              : "connecting"
         }
       />
       <LexicalComposer key={composerKey} initialConfig={initialConfig}>

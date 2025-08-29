@@ -15,13 +15,10 @@ public class WorkspacesController : ControllerBase {
     private readonly LockLogic _lockLogic;
     private readonly ILogger<WorkspacesController> _logger;
 
-    private readonly WorkspaceRepositoryCassandra _wsRepoCass; // visak
-
     public WorkspacesController(WorkspaceLogic workspaceLogic, LockLogic lockLogic, ILogger<WorkspacesController> logger, WorkspaceRepositoryCassandra wsRepoCass) {
         _lockLogic = lockLogic;
         _workspaceLogic = workspaceLogic;
         _logger = logger;
-        _wsRepoCass = wsRepoCass; // visak
     }
 
     [HttpPost("")]

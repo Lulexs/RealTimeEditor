@@ -112,8 +112,11 @@ export default class DocumentStore {
     try {
       const result = await agent.Documents.snapshot(workspaceId, documentId);
       runInAction(() => {
-        this.selectedDocument?.snapshotIds.push(result);
-        console.log(this.documents);
+        this.selectedDocument!.snapshotIds = [
+          ...this.selectedDocument!.snapshotIds,
+          result,
+        ];
+        console.log(this.selectedDocument);
         notifications.show({
           title: "Success",
           message: `Successfully created snapshot ${result.name}, at ${new Date(
