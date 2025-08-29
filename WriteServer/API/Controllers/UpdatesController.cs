@@ -91,18 +91,24 @@ public class UpdatesController : ControllerBase {
     }
 
     private async Task SetupWSConnection(WebSocket conn, Guid workspaceId, Guid documentId, string snapshotId) {
-
         if (docs.TryGetValue((workspaceId, documentId, snapshotId), out SharedDoc? sharedDoc)) {
             sharedDoc.Conns.Add(conn);
         }
         else {
             sharedDoc = new SharedDoc(workspaceId, documentId, snapshotId);
             sharedDoc.Conns.Add(conn);
-
             docs.TryAdd((workspaceId, documentId, snapshotId), sharedDoc);
         }
 
-        await RecieveMessageAsync(conn, sharedDoc);
+        var keepAliveCts = new CancellationTokenSource();
+        _ = Task.Run(() => KeepAlive(conn, keepAliveCts.Token));
+
+        try {
+            await RecieveMessageAsync(conn, sharedDoc);
+        }
+        finally {
+            keepAliveCts.Cancel();
+        }
     }
 
     private async Task RecieveMessageAsync(WebSocket conn, SharedDoc doc) {
@@ -119,9 +125,7 @@ public class UpdatesController : ControllerBase {
                         return;
 
                     byte[] update_bytes = Convert.FromBase64String(deserializedMessage.Update);
-
-                    if (conn.State == WebSocketState.Open)
-                        await encoder.WriteAsync(new SyncUpdateMessage(update_bytes), CancellationToken.None);
+                    await SafeSendAsync(conn, new SyncUpdateMessage(update_bytes), _logger);
                 }
             });
 
@@ -140,14 +144,13 @@ public class UpdatesController : ControllerBase {
 
                     if (GetHashCode() == num) {
                         foreach (var sock in doc.Conns) {
-                            if (sock != conn && conn.State == WebSocketState.Open) {
-                                var foreignEncoder = new WebSocketEncoder(sock);
-                                await foreignEncoder.WriteAsync(msg3!, CancellationToken.None);
+                            if (sock != conn) {
+                                await SafeSendAsync(sock, msg3!, _logger);
                             }
                         }
                     }
-                    else if (conn.State == WebSocketState.Open) {
-                        await encoder.WriteAsync(msg3, CancellationToken.None);
+                    else {
+                        await SafeSendAsync(conn, msg3, _logger);
                     }
                 }
             });
@@ -160,16 +163,14 @@ public class UpdatesController : ControllerBase {
                 if (msg is SyncStep1Message msg1) {
                     byte[] documentState = await _updatesLogic.GetDocumentBytes(doc.DocumentId, doc.SnapshotId, msg1.StateVector);
 
-                    if (conn.State == WebSocketState.Open)
-                        await encoder.WriteAsync(new SyncStep2Message(documentState), CancellationToken.None);
+                    await SafeSendAsync(conn, new SyncStep2Message(documentState), _logger);
                 }
                 else if (msg is SyncUpdateMessage msg2) {
                     _updatesLogic.UpdateDoc(doc.WorkspaceId, doc.DocumentId, msg2);
 
                     foreach (var sock in doc.Conns) {
-                        if (sock != conn && sock.State == WebSocketState.Open) {
-                            var foreignEncoder = new WebSocketEncoder(sock);
-                            await foreignEncoder.WriteAsync(msg2, CancellationToken.None);
+                        if (sock != conn) {
+                            await SafeSendAsync(sock, msg2, _logger);
                         }
                     }
                 }
@@ -182,12 +183,6 @@ public class UpdatesController : ControllerBase {
                     bytes.CopyTo(msgBytes, sizeof(int));
 
                     await interWriteServerSub.PublishAsync(new RedisChannel($"awareness-{doc.DocumentId}", RedisChannel.PatternMode.Literal), msgBytes);
-                    // foreach (var sock in doc.Conns) {
-                    //     if (sock != conn) {
-                    //         var foreignEncoder = new WebSocketEncoder(sock);
-                    //         await foreignEncoder.WriteAsync(msg3, CancellationToken.None);
-                    //     }
-                    // }
                 }
 
             }
@@ -216,8 +211,50 @@ public class UpdatesController : ControllerBase {
             docs.TryRemove((doc.WorkspaceId, doc.DocumentId, doc.SnapshotId), out var _);
         }
 
-        interWriteServerSub.Unsubscribe(new RedisChannel($"realtimeupdate-{doc.DocumentId}", RedisChannel.PatternMode.Literal));
-        interWriteServerSub.Unsubscribe(new RedisChannel($"awareness-{doc.DocumentId}", RedisChannel.PatternMode.Literal));
+        if (doc.Conns.Count == 0) {
+            docs.TryRemove((doc.WorkspaceId, doc.DocumentId, doc.SnapshotId), out _);
+            interWriteServerSub.Unsubscribe(new RedisChannel($"realtimeupdate-{doc.DocumentId}", RedisChannel.PatternMode.Literal));
+            interWriteServerSub.Unsubscribe(new RedisChannel($"awareness-{doc.DocumentId}", RedisChannel.PatternMode.Literal));
+        }
+
+    }
+
+    private async Task SafeSendAsync(WebSocket socket, BaseMessage msg, ILogger logger) {
+        if (socket.State != WebSocketState.Open) return;
+
+        try {
+            var encoder = new WebSocketEncoder(socket);
+            if (msg is SyncStep1Message syncStep1Message)
+                await encoder.WriteAsync(syncStep1Message, CancellationToken.None);
+            else if (msg is SyncStep2Message syncStep2Message)
+                await encoder.WriteAsync(syncStep2Message, CancellationToken.None);
+            else if (msg is AwarenessMessage awarenessMessage)
+                await encoder.WriteAsync(awarenessMessage, CancellationToken.None);
+            else if (msg is SyncUpdateMessage updateMessage)
+                await encoder.WriteAsync(updateMessage, CancellationToken.None);
+
+        }
+        catch (ObjectDisposedException) {
+            logger.LogDebug("Tried to send on disposed socket");
+        }
+        catch (WebSocketException ex) {
+            logger.LogDebug(ex, "WebSocket send failed (probably closed)");
+        }
+        catch (Exception ex) {
+            logger.LogError(ex, "Unexpected error while sending WebSocket message");
+        }
+    }
+
+    private async Task KeepAlive(WebSocket socket, CancellationToken ct) {
+        while (!ct.IsCancellationRequested && socket.State == WebSocketState.Open) {
+            await socket.SendAsync(
+                new ArraySegment<byte>(Array.Empty<byte>()),
+                WebSocketMessageType.Binary,
+                true,
+                ct
+            );
+            await Task.Delay(TimeSpan.FromSeconds(30), ct);
+        }
     }
 
     private class SharedDoc {
