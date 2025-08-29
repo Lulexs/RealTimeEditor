@@ -14,6 +14,26 @@ public class WorkspaceLogic {
         _wsRepoRed = wsRepoRed;
     }
 
+    public async Task<Workspace> CreateWorkspace(WorkspaceDto dto) {
+        var workspaceExists = await _wsRepoCass.VerifyNameExistsAsync(dto.Name);
+        if (workspaceExists) {
+            throw new WorkspaceAlreadyExistsException($"Workspace {dto.Name} already exists");
+        }
+
+        var workspace = new Workspace {
+            Username = dto.OwnerName,
+            WorkspaceId = Guid.NewGuid(),
+            WorkspaceName = dto.Name,
+            OwnerUsername = dto.OwnerName,
+            Permission = PermissionLevel.OWNER,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        await _wsRepoCass.CreateWorkspaceAsync(workspace);
+        return workspace;
+
+    }
+
     public async Task ChangeWorkspaceName(ChangeWorkspaceNameDto dto) {
         var documentExists = await _wsRepoCass.VerifyExistsAsync(dto.WorkspaceId);
         if (!documentExists) {
@@ -32,15 +52,33 @@ public class WorkspaceLogic {
         await _wsRepoRed.KickUser(workspaceId, username, performer);
     }
 
-    public async Task ChangeUserPermission(Guid workspaceId, string username, PermissionLevel newPermLevel, string performer)
-    {
+    public async Task ChangeUserPermission(Guid workspaceId, string username, PermissionLevel newPermLevel, string performer) {
         var workspaceExists = await _wsRepoCass.VerifyExistsAsync(workspaceId);
-        if (!workspaceExists)
-        {
+        if (!workspaceExists) {
             throw new WorkspaceNotFoundException($"Workspace {workspaceId} not found");
         }
         await _wsRepoRed.PublishPermissionChange(workspaceId, username, newPermLevel, performer);
     }
 
+    public async Task<List<Workspace>> GetUserWorkspaces(string username) {
+        var workspaces = await _wsRepoCass.GetUsersWorkspaces(username);
+        return workspaces;
+    }
+
+    public async Task<bool> UserInWorkspaceCheck(string username, Guid workspaceId) {
+        return (await _wsRepoCass.UserInWorkspaceCheck(username, workspaceId)).Count() != 0;
+    }
+
+    public async Task<List<string>> UsersInWorkspace(Guid workspaceId) {
+        return await _wsRepoCass.UsersInWorkspace(workspaceId);
+    }
+
+    public async Task<Workspace> GetWorkspaceByUserAndId(string username, Guid workspaceId) {
+        return await _wsRepoCass.GetWorkspaceByUserAndId(username, workspaceId);
+    }
+
+    public async Task AddUserToWorkspace(Workspace workspace, string username) {
+        await _wsRepoCass.AddUserToWorkspace(workspace, username);
+    }
 
 }

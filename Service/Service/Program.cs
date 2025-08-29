@@ -36,22 +36,24 @@ public class Program {
         );
         await subscriber.SubscribeAsync(new RedisChannel("changeworkspacename", RedisChannel.PatternMode.Literal),
             async (redisChannel, message) => {
-                var wsLogic = new WorkspaceLogic(new Persistence.WorkspaceRepository.WorkspaceRepositoryCassandra());
+                var wsLogic = new WorkspaceLogic(new Persistence.WorkspaceRepository.WorkspaceRepositoryCassandra(),
+                                                loggerFactory.CreateLogger<WorkspaceLogic>());
 
                 await wsLogic.ChangeWorkspaceName(message);
             }
         );
         await subscriber.SubscribeAsync(new RedisChannel("kickuser", RedisChannel.PatternMode.Literal),
             async (redisChannel, message) => {
-                var wsLogic = new WorkspaceLogic(new Persistence.WorkspaceRepository.WorkspaceRepositoryCassandra());
+                var wsLogic = new WorkspaceLogic(new Persistence.WorkspaceRepository.WorkspaceRepositoryCassandra(),
+                                                loggerFactory.CreateLogger<WorkspaceLogic>());
 
                 await wsLogic.KickUserFromWorkspace(message);
             }
         );
         await subscriber.SubscribeAsync(new RedisChannel("changeuserpermission", RedisChannel.PatternMode.Literal),
-            async (redisChannel, message) =>
-            {
-                var wsLogic = new WorkspaceLogic(new Persistence.WorkspaceRepository.WorkspaceRepositoryCassandra());
+            async (redisChannel, message) => {
+                var wsLogic = new WorkspaceLogic(new Persistence.WorkspaceRepository.WorkspaceRepositoryCassandra(),
+                                                loggerFactory.CreateLogger<WorkspaceLogic>());
 
                 await wsLogic.ApplyUserPermissionChange(message);
             }

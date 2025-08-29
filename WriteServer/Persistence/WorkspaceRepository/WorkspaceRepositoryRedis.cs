@@ -14,22 +14,11 @@ public class WorkspaceRepositoryRedis {
         return [];
     }
 
-    /// <summary>
-    /// Write workspace info to redis pub sub
-    /// </summary>
-    /// <param name="UserID"></param>
-    /// <param name="workspace"></param>
-    public void CreateWorkspace(Guid UserID, Workspace workspace) {
-
-    }
-
-    public async Task PublishPermissionChange(Guid workspaceId, string username, PermissionLevel newPermLevel, string performer)
-    {
+    public async Task PublishPermissionChange(Guid workspaceId, string username, PermissionLevel newPermLevel, string performer) {
         var subscriber = RedisSessionManager.GetSubscriber();
 
         string channelName = "changeuserpermission";
-        var message = new
-        {
+        var message = new {
             WorkspaceId = workspaceId,
             Username = username,
             NewPermission = (int)newPermLevel,

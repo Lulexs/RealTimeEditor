@@ -3,6 +3,7 @@ using Models;
 namespace Persistence.WorkspaceRepository;
 
 public class WorkspaceRepositoryRedis {
+
     /// <summary>
     /// Reads user id and workspace from pubsub
     /// </summary>

@@ -3,16 +3,21 @@ using Microsoft.Extensions.Configuration;
 
 namespace Persistence;
 
-public class RedisSessionManager {
+public class RedisSessionManager
+{
     private static IDatabase _database = null!;
     private static ISubscriber _subscriber = null!;
     private static readonly object LockObject = new();
     private static ConnectionMultiplexer _connection = null!;
 
-    public static IDatabase GetDatabase() {
-        if (_database == null) {
-            lock (LockObject) {
-                if (_database == null) {
+    public static IDatabase GetDatabase()
+    {
+        if (_database == null)
+        {
+            lock (LockObject)
+            {
+                if (_database == null)
+                {
                     InitializeConnectionForRedisCloud();
                     _database = _connection.GetDatabase();
                 }
@@ -21,10 +26,14 @@ public class RedisSessionManager {
         return _database;
     }
 
-    public static ISubscriber GetSubscriber() {
-        if (_subscriber == null) {
-            lock (LockObject) {
-                if (_subscriber == null) {
+    public static ISubscriber GetSubscriber()
+    {
+        if (_subscriber == null)
+        {
+            lock (LockObject)
+            {
+                if (_subscriber == null)
+                {
                     InitializeConnectionForRedisCloud();
                     _subscriber = _connection.GetSubscriber();
                 }
@@ -49,12 +58,14 @@ public class RedisSessionManager {
     //     _connection = ConnectionMultiplexer.Connect(redisConfig);
     // }
 
-    private static void InitializeConnectionForLocal() {
+    private static void InitializeConnectionForLocal()
+    {
         var redisConfig = ConfigurationOptions.Parse("localhost:6379");
         _connection = ConnectionMultiplexer.Connect(redisConfig);
     }
 
-    private static void InitializeConnectionForRedisCloud() {
+    private static void InitializeConnectionForRedisCloud()
+    {
         var builder = new ConfigurationBuilder()
             .AddUserSecrets<RedisSessionManager>();
         var configuration = builder.Build();
@@ -65,7 +76,8 @@ public class RedisSessionManager {
         var redisUser = configuration["RedisUser"];
 
         _connection = ConnectionMultiplexer.Connect(
-            new ConfigurationOptions {
+            new ConfigurationOptions
+            {
                 EndPoints = { { redisEndpoint!, redisPort } },
                 User = redisUser,
                 Password = redisPassword
@@ -73,4 +85,3 @@ public class RedisSessionManager {
         );
     }
 }
-

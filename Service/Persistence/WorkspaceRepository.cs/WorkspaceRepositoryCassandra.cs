@@ -3,14 +3,6 @@ using Models;
 namespace Persistence.WorkspaceRepository;
 
 public class WorkspaceRepositoryCassandra {
-    /// <summary>
-    /// Write workspace info to cassandra
-    /// </summary>
-    /// <param name="UserID"></param>
-    /// <param name="workspace"></param>
-    public void CreateWorkspace() {
-
-    }
 
     public async Task<List<string>> GetUsernamesInWorkspace(Guid workspaceId) {
         var session = CassandraSessionManager.GetSession();
@@ -90,8 +82,7 @@ public class WorkspaceRepositoryCassandra {
         var boundStatement1 = statement1.Bind(username, workspaceId);
         await session.ExecuteAsync(boundStatement1);
     }
-    public async Task UpdateUserPermissionAsync(Guid workspaceId, string username, int newPermissionLevel)
-    {
+    public async Task UpdateUserPermissionAsync(Guid workspaceId, string username, int newPermissionLevel) {
         var session = CassandraSessionManager.GetSession();
         var updateUsersByWorkspaceStatement = await session.PrepareAsync(
             "UPDATE users_by_workspace SET permissionlevel = ? WHERE workspaceid = ? AND username = ?"
