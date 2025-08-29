@@ -23,77 +23,26 @@ public class WorkspacesController : ControllerBase {
         _logger = logger;
         _wsRepoCass = wsRepoCass; // visak
     }
-    // TODO:
+
     [HttpPost("")]
     public async Task<ActionResult<Workspace>> CreateWorkspace([FromBody] WorkspaceDto dto) {
         try {
-            var session = CassandraSessionManager.GetSession();
-            var workspaceId = Guid.NewGuid();
-            var createdAt = DateTime.UtcNow;
+            var workspace = await _workspaceLogic.CreateWorkspace(dto);
 
-            //`workspaces_by_user`
-            var workspacesByUserStatement = await session.PrepareAsync(
-                "INSERT INTO workspaces_by_user (username, workspaceid, workspacename, createrusername, permissionlevel, createdat) " +
-                "VALUES (?, ?, ?, ?, ?, ?)"
-            );
-            var workspacesByUserBound = workspacesByUserStatement.Bind(
-                dto.OwnerName, workspaceId, dto.Name, dto.OwnerName, (int)PermissionLevel.OWNER, createdAt
-            );
-            await session.ExecuteAsync(workspacesByUserBound);
-
-            //`users_by_workspace`
-            var usersByWorkspaceStatement = await session.PrepareAsync(
-                "INSERT INTO users_by_workspace (workspaceid, username, permissionlevel) " +
-                "VALUES (?, ?, ?)"
-            );
-            var usersByWorkspaceBound = usersByWorkspaceStatement.Bind(
-                workspaceId, dto.OwnerName, (int)PermissionLevel.OWNER
-            );
-            await session.ExecuteAsync(usersByWorkspaceBound);
-
-            //Ne znam za front da li ti treba nov workspace ili sta
-            var newWorkspace = new Workspace {
-                WorkspaceId = workspaceId,
-                WorkspaceName = dto.Name,
-                OwnerUsername = dto.OwnerName,
-                Username = dto.OwnerName,
-                CreatedAt = createdAt,
-                Permission = PermissionLevel.OWNER
-            };
-            _logger.LogInformation("Created workspace {} for user {}", newWorkspace.WorkspaceId, newWorkspace.Username);
-            return Ok(newWorkspace);
+            _logger.LogInformation("Created workspace {} for user {}", workspace.WorkspaceId, workspace.Username);
+            return Ok(workspace);
         }
         catch (Exception ex) {
             _logger.LogError("Error during CreateWorkspace: {}", ex.Message);
             return StatusCode(500, "An error occurred while creating the workspace.");
         }
     }
-    // TODO:
+
     [HttpGet("{username}")]
     public async Task<ActionResult<List<Workspace>>> GetUsersWorkspaces(string username) {
         try {
-            var session = CassandraSessionManager.GetSession();
 
-            var statement = await session.PrepareAsync(
-                "SELECT workspaceid, workspacename, createrusername, permissionlevel, createdat " +
-                "FROM workspaces_by_user WHERE username = ?"
-            );
-            var boundStatement = statement.Bind(username);
-
-            var resultSet = await session.ExecuteAsync(boundStatement);
-
-
-            var workspaces = new List<Workspace>();
-            foreach (var row in resultSet) {
-                workspaces.Add(new Workspace {
-                    Username = username,
-                    WorkspaceId = row.GetValue<Guid>("workspaceid"),
-                    WorkspaceName = row.GetValue<string>("workspacename"),
-                    OwnerUsername = row.GetValue<string>("createrusername"),
-                    Permission = (PermissionLevel)row.GetValue<int>("permissionlevel"),
-                    CreatedAt = row.GetValue<DateTime>("createdat")
-                });
-            }
+            var workspaces = await _wsRepoCass.GetUsersWorkspaces(username);
 
             _logger.LogInformation("Retrieved {} workspaces for {}", workspaces.Count, username);
             return Ok(workspaces);
@@ -103,74 +52,42 @@ public class WorkspacesController : ControllerBase {
             return StatusCode(500, "An error occurred while retrieving the user's workspaces.");
         }
     }
-    // TODO:
+
     [HttpPost("join")]
     public async Task<ActionResult<Workspace>> JoinWorkspace([FromBody] JoinWorkspaceDto dto) {
+
         var decomposed = dto.JoinCode.Split("\\");
         var workspaceId = Guid.Parse(decomposed[0]);
         PermissionLevel permissionLevel = (PermissionLevel)int.Parse(decomposed[1]);
 
-        var session = CassandraSessionManager.GetSession();
-        var userAlreadyInWorkspace = await session.PrepareAsync(
-            "SELECT workspaceid, username, permissionlevel FROM users_by_workspace WHERE workspaceid = ? AND username = ?"
-        );
-        var userAlreadyInWorkspaceBound = userAlreadyInWorkspace.Bind(workspaceId, dto.Username);
-        var alreadyInWorkspaceRes = (await session.ExecuteAsync(userAlreadyInWorkspaceBound)).ToList();
-
-        if (alreadyInWorkspaceRes.Count != 0) {
+        if (await _workspaceLogic.UserInWorkspaceCheck(dto.Username, workspaceId)) {
             return BadRequest("You are already in this workspace");
         }
 
-        var anyUserInWorkspaceStatement = await session.PrepareAsync(
-            "SELECT username FROM users_by_workspace WHERE workspaceid = ?"
-        );
-        var anyUserInWorkspaceStatementBound = anyUserInWorkspaceStatement.Bind(workspaceId);
-        var res = (await session.ExecuteAsync(anyUserInWorkspaceStatementBound)).ToList();
-        if (res.Count == 0) {
+        var usersInWorkspace = await _workspaceLogic.UsersInWorkspace(workspaceId);
+
+        if (usersInWorkspace.Count == 0) {
             return NotFound("Workspace doesn't exist");
         }
-        var anyUser = res.First();
-        var username = anyUser.GetValue<string>("username");
 
-        var workspaceInfoStatement = await session.PrepareAsync(
-            "SELECT workspacename, createrusername, createdat FROM workspaces_by_user WHERE username = ? AND workspaceid = ?"
-        );
-        var workspaceInfoStatementBound = workspaceInfoStatement.Bind(username, workspaceId);
-        var workspaceInfoRow = (await session.ExecuteAsync(workspaceInfoStatementBound)).First();
-        var name = workspaceInfoRow.GetValue<string>("workspacename");
-        var ownerName = workspaceInfoRow.GetValue<string>("createrusername");
-        var createdAt = workspaceInfoRow.GetValue<DateTime>("createdat");
+        var anyUserUsername = usersInWorkspace.First();
 
-        var workspacesByUserStatement = await session.PrepareAsync(
-                "INSERT INTO workspaces_by_user (username, workspaceid, workspacename, createrusername, permissionlevel, createdat) " +
-                "VALUES (?, ?, ?, ?, ?, ?)"
-            );
-        var workspacesByUserBound = workspacesByUserStatement.Bind(
-            dto.Username, workspaceId, name, ownerName, (int)permissionLevel, createdAt
-        );
-        await session.ExecuteAsync(workspacesByUserBound);
+        var workspaceInfo = await _wsRepoCass.GetWorkspaceByUserAndId(anyUserUsername, workspaceId);
+        workspaceInfo.Permission = permissionLevel;
 
-        var usersByWorkspaceStatement = await session.PrepareAsync(
-            "INSERT INTO users_by_workspace (workspaceid, username, permissionlevel) " +
-            "VALUES (?, ?, ?)"
-        );
-        var usersByWorkspaceBound = usersByWorkspaceStatement.Bind(
-            workspaceId, dto.Username, (int)permissionLevel
-        );
-        await session.ExecuteAsync(usersByWorkspaceBound);
-
+        await _wsRepoCass.AddUserToWorkspace(workspaceInfo, dto.Username);
 
         _logger.LogInformation("{} joining {} with pl {}", dto.Username, workspaceId, permissionLevel);
         return Ok(new Workspace() {
             Username = dto.Username,
-            WorkspaceId = workspaceId,
-            WorkspaceName = name,
-            OwnerUsername = ownerName,
-            Permission = permissionLevel,
-            CreatedAt = createdAt
+            WorkspaceId = workspaceInfo.WorkspaceId,
+            WorkspaceName = workspaceInfo.WorkspaceName,
+            OwnerUsername = workspaceInfo.OwnerUsername,
+            Permission = workspaceInfo.Permission,
+            CreatedAt = workspaceInfo.CreatedAt
         });
     }
-    // TODO:
+
     [HttpDelete("{workspaceId}/{username}")]
     public async Task<ActionResult> DeleteWorkspace(Guid workspaceId, string username) {
         try {
@@ -257,6 +174,7 @@ public class WorkspacesController : ControllerBase {
             return StatusCode(500, "An error occurred while deleting the workspace.");
         }
     }
+
     [HttpPost("lock")]
     public async Task<ActionResult> AcquireLockForChangeWorkspaceName([FromBody] ChangeWorkspaceNameDto dto) {
         try {
