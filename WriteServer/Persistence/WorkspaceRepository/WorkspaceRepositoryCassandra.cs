@@ -132,4 +132,22 @@ public class WorkspaceRepositoryCassandra {
         return await session.ExecuteAsync(boundStatement);
     }
 
+    public async Task DeleteWorkspaceEntries(Guid workspaceId, string username) {
+        var session = CassandraSessionManager.GetSession();
+        var deleteWorkspaceByUserStatement = await session.PrepareAsync(
+                    "DELETE FROM workspaces_by_user WHERE username = ? AND workspaceid = ?"
+                );
+        var deleteWorkspaceByUserBound = deleteWorkspaceByUserStatement.Bind(username, workspaceId);
+        await session.ExecuteAsync(deleteWorkspaceByUserBound);
+    }
+
+    public async Task DeleteUserEntries(Guid workspaceId) {
+        var session = CassandraSessionManager.GetSession();
+        var deleteUsersStatement = await session.PrepareAsync(
+            "DELETE FROM users_by_workspace WHERE workspaceid = ?"
+        );
+        var deleteUsersBound = deleteUsersStatement.Bind(workspaceId);
+        await session.ExecuteAsync(deleteUsersBound);
+    }
+
 }

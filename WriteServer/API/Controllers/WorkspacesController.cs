@@ -91,82 +91,22 @@ public class WorkspacesController : ControllerBase {
     [HttpDelete("{workspaceId}/{username}")]
     public async Task<ActionResult> DeleteWorkspace(Guid workspaceId, string username) {
         try {
-            var session = CassandraSessionManager.GetSession();
 
-            // 1. First check if the workspace exists and verify ownership
-            var workspaceCheckStatement = await session.PrepareAsync(
-                "SELECT createrusername FROM workspaces_by_user " +
-                "WHERE username = ? AND workspaceid = ?"
-            );
-            var workspaceCheckBound = workspaceCheckStatement.Bind(username, workspaceId);
-            var workspaceResult = (await session.ExecuteAsync(workspaceCheckBound)).ToList();
-
-            if (workspaceResult.Count == 0) {
-                _logger.LogWarning("Workspace {WorkspaceId} not found for user {Username}", workspaceId, username);
-                return NotFound($"Workspace with ID {workspaceId} not found.");
-            }
-
-            var creator = workspaceResult.First().GetValue<string>("createrusername");
-            if (creator != username) {
-                _logger.LogWarning("User {Username} attempted to delete workspace {WorkspaceId} owned by {Owner}",
-                    username, workspaceId, creator);
-                return Forbid("Only the workspace owner can delete it.");
-            }
-
-            // 2. Get all users in the workspace before deletion
-            var getUsersStatement = await session.PrepareAsync(
-                "SELECT username FROM users_by_workspace WHERE workspaceid = ?"
-            );
-            var getUsersBound = getUsersStatement.Bind(workspaceId);
-            var workspaceUsers = (await session.ExecuteAsync(getUsersBound))
-                .Select(row => row.GetValue<string>("username"))
-                .ToList();
-
-            // 3. Delete all documents and their updates
-            var getDocumentsStatement = await session.PrepareAsync(
-                "SELECT documentid FROM documents WHERE workspaceid = ?"
-            );
-            var getDocumentsBound = getDocumentsStatement.Bind(workspaceId);
-            var documents = (await session.ExecuteAsync(getDocumentsBound))
-                .Select(row => row.GetValue<Guid>("documentid"))
-                .ToList();
-
-            foreach (var documentId in documents) {
-                // Delete document updates
-                var deleteUpdatesStatement = await session.PrepareAsync(
-                    "DELETE FROM updates_by_snapshot WHERE documentid = ?"
-                );
-                var deleteUpdatesBound = deleteUpdatesStatement.Bind(documentId);
-                await session.ExecuteAsync(deleteUpdatesBound);
-            }
-
-            // 4. Delete documents
-            var deleteDocumentsStatement = await session.PrepareAsync(
-                "DELETE FROM documents WHERE workspaceid = ?"
-            );
-            var deleteDocumentsBound = deleteDocumentsStatement.Bind(workspaceId);
-            await session.ExecuteAsync(deleteDocumentsBound);
-
-            // 5. Delete workspace entries for all users
-            foreach (var workspaceUser in workspaceUsers) {
-                var deleteWorkspaceByUserStatement = await session.PrepareAsync(
-                    "DELETE FROM workspaces_by_user WHERE username = ? AND workspaceid = ?"
-                );
-                var deleteWorkspaceByUserBound = deleteWorkspaceByUserStatement.Bind(workspaceUser, workspaceId);
-                await session.ExecuteAsync(deleteWorkspaceByUserBound);
-            }
-
-            // 6. Delete all user entries for the workspace
-            var deleteUsersStatement = await session.PrepareAsync(
-                "DELETE FROM users_by_workspace WHERE workspaceid = ?"
-            );
-            var deleteUsersBound = deleteUsersStatement.Bind(workspaceId);
-            await session.ExecuteAsync(deleteUsersBound);
+            await _workspaceLogic.DeleteWorkspace(workspaceId, username);
 
             _logger.LogInformation("Workspace {WorkspaceId} successfully deleted by owner {Username}",
                 workspaceId, username);
 
             return Ok($"Workspace {workspaceId} and all associated data successfully deleted.");
+        }
+        catch (WorkspaceNotFoundException ex) {
+            _logger.LogWarning(ex, "Workspace {WorkspaceId} not found for user {Username}", workspaceId, username);
+            return NotFound($"Workspace with ID {workspaceId} not found.");
+        }
+        catch (UnauthorizedAccessException ex) {
+            _logger.LogWarning(ex, "User {Username} attempted to delete someone else's workspace ({WorkspaceId})",
+                username, workspaceId);
+            return Forbid("Only the workspace owner can delete it.");
         }
         catch (Exception ex) {
             _logger.LogError(ex, "Error deleting workspace {WorkspaceId} by user {Username}",

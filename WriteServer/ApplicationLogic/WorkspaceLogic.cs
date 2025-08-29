@@ -2,16 +2,19 @@ using ApplicationLogic.Dtos;
 using ApplicationLogic.Exceptions;
 using Persistence.WorkspaceRepository;
 using Models;
+using Persistence.DocumentRepository;
 
 namespace ApplicationLogic;
 
 public class WorkspaceLogic {
     private readonly WorkspaceRepositoryCassandra _wsRepoCass;
     private readonly WorkspaceRepositoryRedis _wsRepoRed;
+    private readonly DocumentRepositoryCassandra _docRepoCass;
 
-    public WorkspaceLogic(WorkspaceRepositoryCassandra wsRepoCass, WorkspaceRepositoryRedis wsRepoRed) {
+    public WorkspaceLogic(WorkspaceRepositoryCassandra wsRepoCass, WorkspaceRepositoryRedis wsRepoRed, DocumentRepositoryCassandra docRepoCass) {
         _wsRepoCass = wsRepoCass;
         _wsRepoRed = wsRepoRed;
+        _docRepoCass = docRepoCass;
     }
 
     public async Task<Workspace> CreateWorkspace(WorkspaceDto dto) {
@@ -88,6 +91,34 @@ public class WorkspaceLogic {
         }
 
         return usersInWorkspace;
+    }
+
+    public async Task DeleteWorkspace(Guid workspaceId, string username) {
+        var workspace = await _wsRepoCass.GetWorkspaceByUserAndId(username, workspaceId);
+        if (workspace == null) {
+            throw new WorkspaceNotFoundException($"Workspace {workspaceId} not found");
+        }
+
+        var creator = workspace.OwnerUsername;
+        if (creator != username) {
+            throw new UnauthorizedAccessException("Only the workspace owner can delete it.");
+        }
+
+        var usersInWorkspace = await _wsRepoCass.UsersInWorkspace(workspaceId);
+
+        var documents = await _docRepoCass.GetDocumentsInWorkspace(workspaceId);
+        foreach (var documentId in documents) {
+            await _docRepoCass.DeleteDocumentUpdates(documentId);
+        }
+
+        await _docRepoCass.DeleteDocuments(workspaceId);
+
+        foreach (var workspaceUser in usersInWorkspace) {
+            await _wsRepoCass.DeleteWorkspaceEntries(workspaceId, workspaceUser);
+        }
+
+        await _wsRepoCass.DeleteUserEntries(workspaceId);
+
     }
 
 }

@@ -1,3 +1,5 @@
+using Models;
+
 namespace Persistence.DocumentRepository;
 
 public class DocumentRepositoryCassandra {
@@ -39,6 +41,37 @@ public class DocumentRepositoryCassandra {
 
         await session.ExecuteAsync(boundStatement);
 
+    }
+
+    public async Task<List<Guid>> GetDocumentsInWorkspace(Guid workspaceId) {
+        var session = CassandraSessionManager.GetSession();
+        var getDocumentsStatement = await session.PrepareAsync(
+                        "SELECT documentid FROM documents WHERE workspaceid = ?"
+                    );
+        var getDocumentsBound = getDocumentsStatement.Bind(workspaceId);
+        var documents = (await session.ExecuteAsync(getDocumentsBound))
+            .Select(row => row.GetValue<Guid>("documentid"))
+            .ToList();
+
+        return documents;
+    }
+
+    public async Task DeleteDocumentUpdates(Guid documentId) {
+        var session = CassandraSessionManager.GetSession();
+        var deleteUpdatesStatement = await session.PrepareAsync(
+                            "DELETE FROM updates_by_snapshot WHERE documentid = ?"
+                        );
+        var deleteUpdatesBound = deleteUpdatesStatement.Bind(documentId);
+        await session.ExecuteAsync(deleteUpdatesBound);
+    }
+
+    public async Task DeleteDocuments(Guid workspaceId) {
+        var session = CassandraSessionManager.GetSession();
+        var deleteDocumentsStatement = await session.PrepareAsync(
+                        "DELETE FROM documents WHERE workspaceid = ?"
+                    );
+        var deleteDocumentsBound = deleteDocumentsStatement.Bind(workspaceId);
+        await session.ExecuteAsync(deleteDocumentsBound);
     }
 
 }
