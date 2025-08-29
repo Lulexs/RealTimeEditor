@@ -129,7 +129,7 @@ public class WorkspaceLogic {
 
         var usersInWorkspace = await _wsRepoCass.UsersInWorkspace(workspaceId);
 
-        var documents = await _docRepoCass.GetDocumentsInWorkspace(workspaceId);
+        var documents = await _docRepoCass.GetDocumentIdsInWorkspace(workspaceId);
         foreach (var documentId in documents) {
             await _docRepoCass.DeleteDocumentUpdates(documentId);
         }

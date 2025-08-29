@@ -43,7 +43,7 @@ public class DocumentRepositoryCassandra {
 
     }
 
-    public async Task<List<Guid>> GetDocumentsInWorkspace(Guid workspaceId) {
+    public async Task<List<Guid>> GetDocumentIdsInWorkspace(Guid workspaceId) {
         var session = CassandraSessionManager.GetSession();
         var getDocumentsStatement = await session.PrepareAsync(
                         "SELECT documentid FROM documents WHERE workspaceid = ?"
@@ -72,6 +72,45 @@ public class DocumentRepositoryCassandra {
                     );
         var deleteDocumentsBound = deleteDocumentsStatement.Bind(workspaceId);
         await session.ExecuteAsync(deleteDocumentsBound);
+    }
+
+    public async Task<List<Cassandra.Row>> GetDocumentsInWorkspace(Guid workspaceId) {
+        var session = CassandraSessionManager.GetSession();
+        var documentStatement = await session.PrepareAsync(
+            "SELECT * FROM documents WHERE workspaceid = ?"
+        );
+        var documentBoundStatement = documentStatement.Bind(workspaceId);
+        var documentResult = (await session.ExecuteAsync(documentBoundStatement)).ToList();
+        return documentResult;
+    }
+
+    public async Task CreateDocumentAsync(Document doc) {
+        var session = CassandraSessionManager.GetSession();
+        var statement = await session.PrepareAsync(
+            "INSERT INTO documents (workspaceid, documentid, documentname, creatorusername, createdat, snapshot1) " +
+            "VALUES (?, ?, ?, ?, ?, ?)"
+        );
+        var boundStatement = statement.Bind(doc.WorkspaceId, doc.DocumentId, doc.DocumentName, doc.CreatorUsername, doc.CreatedAt, doc.CreatedAt);
+        await session.ExecuteAsync(boundStatement);
+    }
+
+    public async Task<Cassandra.RowSet> GetUserPermissionLevel(Guid workspaceId, string username) {
+        var session = CassandraSessionManager.GetSession();
+        var userStatement = await session.PrepareAsync(
+            "SELECT permissionlevel FROM users_by_workspace WHERE workspaceid = ? AND username = ?"
+        );
+        var userBoundStatement = userStatement.Bind(workspaceId, username);
+        var userResultSet = await session.ExecuteAsync(userBoundStatement);
+        return userResultSet;
+    }
+
+    public async Task DeleteDocument(Guid workspaceId, Guid documentId) {
+        var session = CassandraSessionManager.GetSession();
+        var documentStatement = await session.PrepareAsync(
+                        "DELETE FROM documents WHERE workspaceid = ? AND documentid = ?"
+                    );
+        var documentBoundStatement = documentStatement.Bind(workspaceId, documentId);
+        await session.ExecuteAsync(documentBoundStatement);
     }
 
 }

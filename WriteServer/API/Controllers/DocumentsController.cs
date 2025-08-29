@@ -24,46 +24,7 @@ public class DocumentsController : ControllerBase {
     [HttpGet("{workspaceId}")]
     public async Task<ActionResult<List<Document>>> GetDocumentsInWorkspace(Guid workspaceId) {
         try {
-            var session = CassandraSessionManager.GetSession();
-            var documentStatement = await session.PrepareAsync(
-                "SELECT * FROM documents WHERE workspaceid = ?"
-            );
-            var documentBoundStatement = documentStatement.Bind(workspaceId);
-            var documentResult = (await session.ExecuteAsync(documentBoundStatement)).ToList();
-
-            var documents = new List<Document>();
-
-            foreach (var row in documentResult) {
-                var snapshotIds = new List<Snapshot>();
-
-                int index = 1;
-                while (true) {
-                    string columnName = $"snapshot{index}";
-                    var column = row.GetColumn(columnName);
-
-                    if (column == null) {
-                        break;
-                    }
-
-                    var snapshotTimestamp = row.GetValue<DateTime?>(columnName);
-                    if (snapshotTimestamp == null)
-                        break;
-
-                    snapshotIds.Add(new(columnName, snapshotTimestamp.GetValueOrDefault()));
-                    index++;
-                }
-
-                var document = new Document {
-                    WorkspaceId = row.GetValue<Guid>("workspaceid"),
-                    DocumentId = row.GetValue<Guid>("documentid"),
-                    DocumentName = row.GetValue<string>("documentname"),
-                    CreatedAt = row.GetValue<DateTime>("createdat"),
-                    CreatorUsername = row.GetValue<string>("creatorusername"),
-                    SnapshotIds = snapshotIds
-                };
-
-                documents.Add(document);
-            }
+            var documents = await _documentLogic.GetDocumentsInWorkspace(workspaceId);
             if (documents.Count == 0) {
                 return NotFound($"No documents found for workspace {workspaceId}.");
             }
@@ -80,27 +41,10 @@ public class DocumentsController : ControllerBase {
     [HttpPost("")]
     public async Task<ActionResult<Document>> CreateDocument([FromBody] CreateDocumentDto dto) {
         try {
-            var session = CassandraSessionManager.GetSession();
-            var documentId = Guid.NewGuid();
-            var createdAt = DateTime.UtcNow;
-            var statement = await session.PrepareAsync(
-                "INSERT INTO documents (workspaceid, documentid, documentname, creatorusername, createdat, snapshot1) " +
-                "VALUES (?, ?, ?, ?, ?, ?)"
-            );
-            var boundStatement = statement.Bind(dto.WorkspaceId, documentId, dto.DocumentName, dto.CreatorUsername, createdAt, createdAt);
-            await session.ExecuteAsync(boundStatement);
+            var document = await _documentLogic.CreateDocument(dto);
 
-            var newDocument = new Document {
-                WorkspaceId = dto.WorkspaceId,
-                DocumentId = documentId,
-                DocumentName = dto.DocumentName,
-                CreatorUsername = dto.CreatorUsername,
-                CreatedAt = createdAt,
-                SnapshotIds = new List<Snapshot> { new Snapshot("snapshot1", DateTime.UtcNow) }
-            };
-
-            _logger.LogInformation($"Document {documentId} created in workspace {dto.WorkspaceId} with name {dto.DocumentName}");
-            return Ok(newDocument);
+            _logger.LogInformation($"Document {document.DocumentId} created in workspace {document.WorkspaceId} with name {document.DocumentName}");
+            return Ok(document);
         }
         catch (Exception ex) {
             _logger.LogError($"Error during CreateDocument: {ex.Message}");
@@ -111,38 +55,14 @@ public class DocumentsController : ControllerBase {
     [HttpDelete("{workspaceId}/{documentId}/{actionPerformer}")]
     public async Task<ActionResult> DeleteDocument(Guid workspaceId, Guid documentId, string actionPerformer) {
         try {
-            var session = CassandraSessionManager.GetSession();
-            var userStatement = await session.PrepareAsync(
-                "SELECT permissionlevel FROM users_by_workspace WHERE workspaceid = ? AND username = ?"
-            );
-            var userBoundStatement = userStatement.Bind(workspaceId, actionPerformer);
-            var userResultSet = await session.ExecuteAsync(userBoundStatement);
-
-            var userRow = userResultSet.FirstOrDefault();
-            if (userRow == null) {
-                return NotFound($"User {actionPerformer} not found in workspace {workspaceId}.");
-            }
-            var permissionLevel = (PermissionLevel)userRow.GetValue<int>("permissionlevel");
-            if (permissionLevel != PermissionLevel.OWNER) {
-                return Forbid($"User {actionPerformer} is not authorized to delete documents in workspace {workspaceId}.");
-            }
-
-            // snapshotovi vezani za dokument
-            var snapshotStatement = await session.PrepareAsync(
-                "DELETE FROM updates_by_snapshot WHERE documentid = ?"
-            );
-            var snapshotBoundStatement = snapshotStatement.Bind(documentId);
-            await session.ExecuteAsync(snapshotBoundStatement);
-
-            // brisi dokument finally
-            var documentStatement = await session.PrepareAsync(
-                "DELETE FROM documents WHERE workspaceid = ? AND documentid = ?"
-            );
-            var documentBoundStatement = documentStatement.Bind(workspaceId, documentId);
-            await session.ExecuteAsync(documentBoundStatement);
+            await _documentLogic.DeleteDocument(workspaceId, documentId, actionPerformer);
 
             _logger.LogInformation($"Document {documentId} in workspace {workspaceId} and its snapshots deleted by {actionPerformer}");
             return Ok($"Document {documentId} and all its snapshots were deleted successfully.");
+        }
+        catch (UnauthorizedAccessException ex) {
+            _logger.LogWarning($"Unauthorized access during DeleteDocument: {ex.Message}");
+            return Forbid("You do not have permission to delete this document.");
         }
         catch (Exception ex) {
             _logger.LogError($"Error during DeleteDocument: {ex.Message}");
