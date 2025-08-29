@@ -2,9 +2,11 @@ using Models;
 
 namespace Persistence.UserRepository;
 
-public class UserRepositoryCassandra {
+public class UserRepositoryCassandra
+{
 
-    public async Task<bool> SaveUser(User user) {
+    public async Task<bool> SaveUser(User user)
+    {
         var session = CassandraSessionManager.GetSession();
 
         var query = "INSERT INTO users_by_username (username, region, userid, password, email, avatar) VALUES (?, ?, ?, ?, ?, ?)";
@@ -26,20 +28,6 @@ public class UserRepositoryCassandra {
             return true;
 
         return false;
-    }
-
-    /// <summary>
-    /// Adds user to workspace and sets specified permission level to cassandra
-    /// </summary>
-    public void AddUserToWorkspace() {
-
-    }
-
-    /// <summary>
-    /// Change user's permission level in cassandra
-    /// </summary>
-    public void ChangeUserPermissionLevel() {
-
     }
 
 }

@@ -5,14 +5,6 @@ using StackExchange.Redis;
 namespace Persistence.WorkspaceRepository;
 
 public class WorkspaceRepositoryRedis {
-    /// <summary>
-    /// Get workspace names from cache
-    /// </summary>
-    /// <param name="UserID"></param>
-    /// <returns></returns>
-    public List<Workspace> GetUsersWorkspaces(Guid UserID) {
-        return [];
-    }
 
     public async Task PublishPermissionChange(Guid workspaceId, string username, PermissionLevel newPermLevel, string performer) {
         var subscriber = RedisSessionManager.GetSubscriber();
