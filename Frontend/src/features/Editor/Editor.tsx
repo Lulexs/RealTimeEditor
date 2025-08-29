@@ -97,18 +97,27 @@ export default observer(function Editor() {
     (id: string, yjsDocMap: Map<string, Y.Doc>): Provider => {
       const doc = getDocFromMap(id, yjsDocMap);
 
-      const provider = new WebsocketProvider("http://localhost:5287", id, doc, {
+      const provider = new WebsocketProvider("ws://localhost:5287", id, doc, {
         connect: true,
+        params: {},
+        // timeout: 30000,
+        maxBackoffTime: 10000,
+      });
+
+      provider.on("connection-error", (e) => {
+        console.error("WebSocket connection error:", e);
+        setConnectionStatus("disconnected");
       });
 
       provider.on("connection-close", (e) => {
-        if (e != null) {
-          provider.shouldConnect = false;
+        console.log("WebSocket connection closed:", e);
+        setConnectionStatus("disconnected");
+        if (e && e.code !== 1000) {
           notifications.show({
-            title: "Connection failed",
-            message: e?.reason,
+            title: "Connection lost",
+            message: e.reason || "Connection to server was lost",
             autoClose: false,
-            color: "red",
+            color: "orange",
           });
         }
       });

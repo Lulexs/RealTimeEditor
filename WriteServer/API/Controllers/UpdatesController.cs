@@ -120,7 +120,8 @@ public class UpdatesController : ControllerBase {
 
                     byte[] update_bytes = Convert.FromBase64String(deserializedMessage.Update);
 
-                    await encoder.WriteAsync(new SyncUpdateMessage(update_bytes), CancellationToken.None);
+                    if (conn.State == WebSocketState.Open)
+                        await encoder.WriteAsync(new SyncUpdateMessage(update_bytes), CancellationToken.None);
                 }
             });
 
@@ -139,13 +140,13 @@ public class UpdatesController : ControllerBase {
 
                     if (GetHashCode() == num) {
                         foreach (var sock in doc.Conns) {
-                            if (sock != conn) {
+                            if (sock != conn && conn.State == WebSocketState.Open) {
                                 var foreignEncoder = new WebSocketEncoder(sock);
                                 await foreignEncoder.WriteAsync(msg3!, CancellationToken.None);
                             }
                         }
                     }
-                    else {
+                    else if (conn.State == WebSocketState.Open) {
                         await encoder.WriteAsync(msg3, CancellationToken.None);
                     }
                 }
@@ -153,18 +154,20 @@ public class UpdatesController : ControllerBase {
 
         while (true) {
             try {
-                var msg = await decoder.ReadNextMessageAsync(CancellationToken.None);
+                var ct = HttpContext.RequestAborted;
+                var msg = await decoder.ReadNextMessageAsync(ct);
 
                 if (msg is SyncStep1Message msg1) {
                     byte[] documentState = await _updatesLogic.GetDocumentBytes(doc.DocumentId, doc.SnapshotId, msg1.StateVector);
 
-                    await encoder.WriteAsync(new SyncStep2Message(documentState), CancellationToken.None);
+                    if (conn.State == WebSocketState.Open)
+                        await encoder.WriteAsync(new SyncStep2Message(documentState), CancellationToken.None);
                 }
                 else if (msg is SyncUpdateMessage msg2) {
                     _updatesLogic.UpdateDoc(doc.WorkspaceId, doc.DocumentId, msg2);
 
                     foreach (var sock in doc.Conns) {
-                        if (sock != conn) {
+                        if (sock != conn && sock.State == WebSocketState.Open) {
                             var foreignEncoder = new WebSocketEncoder(sock);
                             await foreignEncoder.WriteAsync(msg2, CancellationToken.None);
                         }
@@ -188,17 +191,18 @@ public class UpdatesController : ControllerBase {
                 }
 
             }
-            catch (WebSocketException e) {
+            catch (Exception e) when (e is WebSocketException ||
+                                      e is CantLoadDocumentContentException ||
+                                      e is FailedToQueueUpdateException ||
+                                      e is OperationCanceledException) {
                 CloseConnection(doc, conn);
-                _logger.LogInformation("Closing connection from {}:{}", clientIp, clientPort);
-                _logger.LogError("{}", e.Message);
+                _logger.LogInformation("Closing connection from {ClientIp}:{ClientPort} due to {Exception}",
+                    clientIp, clientPort, e.GetType().Name);
                 break;
             }
-            catch (CantLoadDocumentContentException) {
-                CloseConnection(doc, conn);
-                break;
-            }
-            catch (FailedToQueueUpdateException) {
+            catch (Exception e) {
+                _logger.LogError(e, "Unexpected error in WebSocket connection from {ClientIp}:{ClientPort}",
+                    clientIp, clientPort);
                 CloseConnection(doc, conn);
                 break;
             }
@@ -212,7 +216,8 @@ public class UpdatesController : ControllerBase {
             docs.TryRemove((doc.WorkspaceId, doc.DocumentId, doc.SnapshotId), out var _);
         }
 
-        interWriteServerSub.UnsubscribeAll();
+        interWriteServerSub.Unsubscribe(new RedisChannel($"realtimeupdate-{doc.DocumentId}", RedisChannel.PatternMode.Literal));
+        interWriteServerSub.Unsubscribe(new RedisChannel($"awareness-{doc.DocumentId}", RedisChannel.PatternMode.Literal));
     }
 
     private class SharedDoc {
